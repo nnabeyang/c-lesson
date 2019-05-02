@@ -12,9 +12,20 @@ enum {
 #define skip_white_space(c) while(c == ' ') c = cl_getc()
 int parse_one(int c, int* out_val, int* out_type);
 
+void  test_parse_one_123() {
+    int out_val;
+    int out_type;
+    int c = parse_one(cl_getc(), &out_val, &out_type);
+    assert(out_type == NUMBER);
+    assert(out_val = 123);
+    assert(c == ' ');
+}
+
 int main() {
     int answer1 = 0;
     int answer2 = 0;
+    test_parse_one_123();
+    cl_getc_set_src("123 456");
     int* answers[] = {&answer1, &answer2};
     int i = 0;
     const int n = sizeof(answers)/ sizeof(int*);
