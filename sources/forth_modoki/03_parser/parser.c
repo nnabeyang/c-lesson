@@ -34,6 +34,18 @@ int isdigit(int ch) {
     return '0' <= ch && ch <= '9';
 }
 #define skip_white_space(c) while(c == ' ') c = cl_getc()
+int parse_one_name(int c, struct Token *out_token) {
+    char* buf = malloc(sizeof(char) * NAME_SIZE);
+    char* p = buf;
+    do {
+        *p++ = c;
+        c =  cl_getc();
+    } while(isalpha(c));
+    *p = '\0';
+    out_token->u.name = buf;
+    return c;
+}
+
 int parse_one(int prev_ch, struct Token *out_token) {
     int c;
     if(prev_ch == EOF)
@@ -48,16 +60,14 @@ int parse_one(int prev_ch, struct Token *out_token) {
         out_token->u.number = v;
         return c;
     }
+    if(c == '/') {
+        c = parse_one_name(cl_getc(), out_token);
+        out_token->ltype = LITERAL_NAME;
+        return c;
+    }
     if(isalpha(c)) {
-        char* buf = malloc(sizeof(char) * NAME_SIZE);
-        char* p = buf;
-        do {
-            *p++ = c;
-            c =  cl_getc();
-        } while(isalpha(c));
-        *p = '\0';
+        c = parse_one_name(c, out_token);
         out_token->ltype = EXECUTABLE_NAME;
-        out_token->u.name = buf;
         return c;
     }
     if(c == EOF) {
@@ -107,7 +117,22 @@ void parser_print_all() {
     }while(ch != EOF);
 }
 
+static void test_parse_one_literal_name() {
+    char *input = "/add";
+    char *expect_name = "add";
+    int expect_type = LITERAL_NAME;
 
+    struct Token token = {UNKNOWN, {0}};
+    int ch;
+
+    cl_getc_set_src(input);
+
+    ch = parse_one(EOF, &token);
+
+    assert(ch == EOF);
+    assert(token.ltype == expect_type);
+    assert(strcmp(token.u.name, expect_name) == 0);
+}
 
 static void test_parse_one_executeble_name() {
     char *input = "add";
@@ -161,6 +186,7 @@ static void unit_tests() {
     test_parse_one_empty_should_return_END_OF_FILE();
     test_parse_one_number();
     test_parse_one_executeble_name();
+    test_parse_one_literal_name();
 }
 
 int main() {
