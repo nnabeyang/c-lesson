@@ -27,7 +27,9 @@ struct Token {
 };
 
 #define NAME_SIZE 256
-
+int isalpha(int ch) {
+    return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
+}
 #define skip_white_space(c) while(c == ' ') c = cl_getc()
 int parse_one(int prev_ch, struct Token *out_token) {
     int c;
@@ -41,6 +43,18 @@ int parse_one(int prev_ch, struct Token *out_token) {
         }while('0' <= c && c <= '9');
         out_token->ltype = NUMBER;
         out_token->u.number = v;
+        return c;
+    }
+    if(isalpha(c)) {
+        char* buf = malloc(sizeof(char) * NAME_SIZE);
+        char* p = buf;
+        do {
+            *p++ = c;
+            c =  cl_getc();
+        } while(isalpha(c));
+        *p = '\0';
+        out_token->ltype = EXECUTABLE_NAME;
+        out_token->u.name = buf;
         return c;
     }
     if(c == EOF) {
@@ -92,7 +106,22 @@ void parser_print_all() {
 
 
 
+static void test_parse_one_executeble_name() {
+    char *input = "add";
+    char *expect_name = "add";
+    int expect_type = EXECUTABLE_NAME;
 
+    struct Token token = {UNKNOWN, {0}};
+    int ch;
+
+    cl_getc_set_src(input);
+
+    ch = parse_one(EOF, &token);
+
+    assert(ch == EOF);
+    assert(token.ltype == expect_type);
+    assert(strcmp(token.u.name, expect_name) == 0);
+}
 
 static void test_parse_one_number() {
     char *input = "123";
@@ -128,6 +157,7 @@ static void test_parse_one_empty_should_return_END_OF_FILE() {
 static void unit_tests() {
     test_parse_one_empty_should_return_END_OF_FILE();
     test_parse_one_number();
+    test_parse_one_executeble_name();
 }
 
 int main() {
