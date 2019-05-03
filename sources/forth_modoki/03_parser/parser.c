@@ -50,6 +50,12 @@ int parse_one(int prev_ch, struct Token *out_token) {
     int c = prev_ch;
     if(c == EOF)
         c = cl_getc();
+    if(c == ' ') {
+        skip_white_space(c);
+        out_token->ltype = SPACE;
+        out_token->u.onechar = ' ';
+        return c;
+    }
     if(isdigit(c)) {
         int v = 0;
         do {
@@ -142,6 +148,29 @@ static void test_parse_one_brace() {
     assert(token.u.onechar == '}');
 }
 
+static void test_parse_one_space() {
+    char *input = "123   456";
+    struct Token token = {UNKNOWN, {0}};
+    int ch;
+
+    cl_getc_set_src(input);
+
+    ch = parse_one(EOF, &token);
+    assert(ch == ' ');
+    assert(token.ltype == NUMBER);
+    assert(token.u.number == 123);
+
+    ch = parse_one(ch, &token);
+    assert(ch == '4');
+    assert(token.ltype == SPACE);
+    assert(token.u.onechar == ' ');
+
+    ch = parse_one(ch, &token);
+    assert(ch == EOF);
+    assert(token.ltype == NUMBER);
+    assert(token.u.number == 456);    
+}
+
 static void test_parse_one_literal_name() {
     char *input = "/add";
     char *expect_name = "add";
@@ -213,6 +242,7 @@ static void unit_tests() {
     test_parse_one_executeble_name();
     test_parse_one_literal_name();
     test_parse_one_brace();
+    test_parse_one_space();
 }
 
 int main() {
