@@ -6,8 +6,7 @@ cc cl_getc.c int_parser_getc.c
 */
 enum {
     NUMBER,
-    SPACE,
-    UNKNOWN
+    SPACE
 };
 #define skip_white_space(c) while(c == ' ') c = cl_getc()
 int parse_one(int c, int* out_val, int* out_type);
@@ -15,7 +14,7 @@ int parse_one(int c, int* out_val, int* out_type);
 void  test_parse_one_123() {
     int out_val;
     int out_type;
-    int c = parse_one(cl_getc(), &out_val, &out_type);
+    int c = parse_one(0, &out_val, &out_type);
     assert(out_type == NUMBER);
     assert(out_val = 123);
     assert(c == ' ');
@@ -31,7 +30,7 @@ int main() {
     const int n = sizeof(answers)/ sizeof(int*);
     int out_val;
     int out_type;
-    int c = cl_getc();
+    int c = 0;
     while(i < n && c != EOF) {
         c = parse_one(c, &out_val, &out_type);
         switch(out_type) {
@@ -40,8 +39,7 @@ int main() {
         case NUMBER:
             *answers[i++] = out_val;
             break;
-        case UNKNOWN:
-            fprintf(stderr, "' ' or [0-9] is expected, but got '%c'\n", c);
+        default:
             return 1;
         }
     }
@@ -55,6 +53,8 @@ int main() {
 
 }
 int parse_one(int c, int* out_val, int* out_type) {
+  if(c == 0)
+    c = cl_getc();
   if('0' <= c && c <= '9') {
     int v = 0;
     do {
@@ -70,6 +70,5 @@ int parse_one(int c, int* out_val, int* out_type) {
         *out_type = SPACE;
         return c;
   }
-  *out_type = UNKNOWN;
-  return c;
+  return 0;
 }
