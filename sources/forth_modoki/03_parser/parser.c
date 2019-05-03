@@ -47,8 +47,8 @@ int parse_one_name(int c, struct Token *out_token) {
 }
 
 int parse_one(int prev_ch, struct Token *out_token) {
-    int c;
-    if(prev_ch == EOF)
+    int c = prev_ch;
+    if(c == EOF)
         c = cl_getc();
     if(isdigit(c)) {
         int v = 0;
