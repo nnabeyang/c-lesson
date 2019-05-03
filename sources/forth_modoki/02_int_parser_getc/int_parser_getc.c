@@ -33,6 +33,7 @@ int main() {
     int c = 0;
     while(i < n && c != EOF) {
         c = parse_one(c, &out_val, &out_type);
+        if(c == 0) return 1;
         switch(out_type) {
         case SPACE:
             break;
