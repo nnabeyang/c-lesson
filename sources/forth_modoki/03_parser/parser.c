@@ -60,6 +60,16 @@ int parse_one(int prev_ch, struct Token *out_token) {
         out_token->u.number = v;
         return c;
     }
+    if(c == '{') {
+        out_token->ltype = OPEN_CURLY;
+        out_token->u.onechar = c;
+        return cl_getc();
+    }
+    if(c == '}') {
+        out_token->ltype = CLOSE_CURLY;
+        out_token->u.onechar = c;
+        return cl_getc();
+    }
     if(c == '/') {
         c = parse_one_name(cl_getc(), out_token);
         out_token->ltype = LITERAL_NAME;
@@ -115,6 +125,21 @@ void parser_print_all() {
             }
         }
     }while(ch != EOF);
+}
+
+static void test_parse_one_brace() {
+    char *input = "{}";
+    struct Token token = {UNKNOWN, {0}};
+    int ch;
+    cl_getc_set_src(input);
+    ch = parse_one(EOF, &token);
+    assert(ch == '}');
+    assert(token.ltype == OPEN_CURLY);
+    assert(token.u.onechar == '{');
+    ch = parse_one(ch, &token);
+    assert(ch == EOF);
+    assert(token.ltype == CLOSE_CURLY);
+    assert(token.u.onechar == '}');
 }
 
 static void test_parse_one_literal_name() {
@@ -187,6 +212,7 @@ static void unit_tests() {
     test_parse_one_number();
     test_parse_one_executeble_name();
     test_parse_one_literal_name();
+    test_parse_one_brace();
 }
 
 int main() {
