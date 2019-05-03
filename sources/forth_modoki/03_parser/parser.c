@@ -28,12 +28,25 @@ struct Token {
 
 #define NAME_SIZE 256
 
+#define skip_white_space(c) while(c == ' ') c = cl_getc()
 int parse_one(int prev_ch, struct Token *out_token) {
-    /****
-     * 
-     * TODO: Implement here!
-     * 
-    ****/
+    int c;
+    if(prev_ch == EOF)
+        c = cl_getc();
+    if('0' <= c && c <= '9') {
+        int v = 0;
+        do {
+            v = v * 10 + c - '0';
+            c = cl_getc();
+        }while('0' <= c && c <= '9');
+        out_token->ltype = NUMBER;
+        out_token->u.number = v;
+        return c;
+    }
+    if(c == EOF) {
+        out_token->ltype = END_OF_FILE;
+        return c;
+    }
     out_token->ltype = UNKNOWN;
     return EOF;
 }
@@ -121,6 +134,6 @@ int main() {
     unit_tests();
 
     cl_getc_set_src("123 45 add /some { 2 3 add } def");
-    parser_print_all();
+    //parser_print_all();
     return 0;
 }
