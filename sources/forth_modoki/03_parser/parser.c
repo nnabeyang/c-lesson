@@ -30,17 +30,20 @@ struct Token {
 int isalpha(int ch) {
     return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
 }
+int isdigit(int ch) {
+    return '0' <= ch && ch <= '9';
+}
 #define skip_white_space(c) while(c == ' ') c = cl_getc()
 int parse_one(int prev_ch, struct Token *out_token) {
     int c;
     if(prev_ch == EOF)
         c = cl_getc();
-    if('0' <= c && c <= '9') {
+    if(isdigit(c)) {
         int v = 0;
         do {
             v = v * 10 + c - '0';
             c = cl_getc();
-        }while('0' <= c && c <= '9');
+        }while(isdigit(c));
         out_token->ltype = NUMBER;
         out_token->u.number = v;
         return c;
