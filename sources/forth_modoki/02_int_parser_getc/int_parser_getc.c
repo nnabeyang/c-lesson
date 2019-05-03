@@ -20,10 +20,29 @@ void  test_parse_one_123() {
     assert(c == ' ');
 }
 
+void test_parse_one_123_456() {
+    int out_val;
+    int out_type;
+    cl_getc_set_src("123 456");
+    int c = parse_one(0, &out_val, &out_type);
+    assert(out_type == NUMBER);
+    assert(out_val = 123);
+    assert(c == ' ');
+    c = parse_one(c, &out_val, &out_type);
+    assert(out_type == SPACE);
+    assert(out_val = ' ');
+    assert(c == '4');
+    c = parse_one(c, &out_val, &out_type);
+    assert(out_type == NUMBER);
+    assert(out_val = 456);
+    assert(c == EOF);
+}
+
 int main() {
     int answer1 = 0;
     int answer2 = 0;
     test_parse_one_123();
+    test_parse_one_123_456();
     cl_getc_set_src("123 456");
     int* answers[] = {&answer1, &answer2};
     int i = 0;
@@ -69,6 +88,7 @@ int parse_one(int c, int* out_val, int* out_type) {
   if(c == ' ') {
         skip_white_space(c);
         *out_type = SPACE;
+        *out_val = ' ';
         return c;
   }
   return 0;
