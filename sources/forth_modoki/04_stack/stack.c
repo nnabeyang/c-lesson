@@ -19,11 +19,28 @@ static struct Stack* newStack() {
     return stack;
 }
 
+static void assert_token(struct Token* actual, struct Token* expect) {
+    assert(actual->ltype == expect->ltype);
+    switch(actual->ltype) {
+        case NUMBER:
+            assert(actual->u.number == expect->u.number);
+            break;
+        case EXECUTABLE_NAME:
+        case LITERAL_NAME:
+            assert(strcmp(actual->u.name, expect->u.name) == 0);
+            break;
+        case OPEN_CURLY:
+        case CLOSE_CURLY:
+        case END_OF_FILE:
+            assert(actual->u.onechar == expect->u.onechar);
+            break;
+        default:
+            break;
+    }
+}
+
 static void test_pop_stack_contains_two_tokens() {
     struct Stack* stack = newStack();
-    int expect_val0 = 123;
-    const char* expect_val1 = "add";
-    int expect_types[2] = {NUMBER, EXECUTABLE_NAME};
     struct Token inputs[2] = {
         {NUMBER, {0}},
         {EXECUTABLE_NAME, {0}}
@@ -33,29 +50,20 @@ static void test_pop_stack_contains_two_tokens() {
 
     stack_push(stack, &inputs[0]);
     stack_push(stack, &inputs[1]);
-    struct Token* actual;
 
-    actual = stack_pop(stack);
-    assert(actual->ltype == expect_types[1]);
-    assert(strcmp(actual->u.name, expect_val1));
-
-    actual = stack_pop(stack);
-    assert(actual->ltype == expect_types[0]);
-    assert(actual->u.number == expect_val0);
+    assert_token(stack_pop(stack), &inputs[1]);
+    assert_token(stack_pop(stack), &inputs[0]);
 
     assert(stack_pop(stack) == 0);
 }
 
 static void test_pop_stack_contains_one_token() {
     struct Stack* stack = newStack();
-    int expect_val = 123;
-    int expect_type = NUMBER;
-    struct Token input = {NUMBER, {expect_val}};
+    struct Token input = {NUMBER, {0}};
+    input.u.number = 123;
 
     stack_push(stack, &input);
-    struct Token* actual = stack_pop(stack);
-    assert(actual->ltype == expect_type);
-    assert(actual->u.number = expect_val);
+    assert_token(stack_pop(stack), &input);
 
     assert(0 == stack_pop(stack));
 }
