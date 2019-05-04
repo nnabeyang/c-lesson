@@ -5,16 +5,16 @@
 #include <string.h>
 
 void stack_push(struct Stack* stack, struct Token* token) {
-    stack->tokens[stack->n++] = token;
+    stack->tokens[stack->n++] = *token;
 }
 
 struct Token* stack_pop(struct Stack* stack) {
     if(stack->n == 0) return 0;
-    return stack->tokens[stack->n-- - 1];
+    return &stack->tokens[stack->n-- - 1];
 }
 
 static struct Stack* newStack() {
-    struct Stack* stack = malloc(sizeof(struct Stack) + sizeof(struct Token*) * STACK_SIZE);
+    struct Stack* stack = malloc(sizeof(struct Stack) + sizeof(struct Token) * STACK_SIZE);
     stack->n = 0;
     return stack;
 }
@@ -37,6 +37,31 @@ static void assert_token(struct Token* actual, struct Token* expect) {
         default:
             break;
     }
+}
+static void setup_test(struct Stack* stack) {
+    struct Token inputs[2] = {
+        {NUMBER, {0}},
+        {EXECUTABLE_NAME, {0}}
+    };
+    inputs[0].u.number = 123;
+    inputs[1].u.name = "abc";
+
+    stack_push(stack, &inputs[0]);
+    stack_push(stack, &inputs[1]);
+}
+
+static void test_copy_token() {
+    struct Stack* stack = newStack();
+    struct Token expects[] = {
+        {NUMBER, {0}},
+        {EXECUTABLE_NAME, {0}}
+    };
+    expects[0].u.number = 123;
+    expects[1].u.name = "abc";
+    setup_test(stack);
+    assert_token(stack_pop(stack), &expects[1]);
+    assert_token(stack_pop(stack), &expects[0]);
+    assert(stack_pop(stack) == 0);
 }
 
 static void test_pop_stack_contains_two_tokens() {
@@ -77,6 +102,7 @@ static void unit_tests() {
     test_pop_empty();
     test_pop_stack_contains_one_token();
     test_pop_stack_contains_two_tokens();
+    test_copy_token();
 }
 
 void stack_print_all(struct Stack* stack) {

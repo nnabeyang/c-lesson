@@ -20,7 +20,7 @@ struct Token {
 };
 struct Stack {
     int n;
-    struct Token* tokens[1];    
+    struct Token tokens[1];
 };
 
 void stack_print_all(struct Stack* stack);
