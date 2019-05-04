@@ -27,14 +27,14 @@ struct Token {
 };
 
 #define NAME_SIZE 256
-int isalpha(int ch) {
+static int isalpha(int ch) {
     return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
 }
-int isdigit(int ch) {
+static int isdigit(int ch) {
     return '0' <= ch && ch <= '9';
 }
 #define skip_white_space(c) while(c == ' ') c = cl_getc()
-int parse_one_name(int c, struct Token *out_token) {
+static int parse_one_name(int c, struct Token *out_token) {
     char* buf = malloc(sizeof(char) * NAME_SIZE);
     char* p = buf;
     do {
