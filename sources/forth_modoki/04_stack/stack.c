@@ -79,8 +79,60 @@ static void unit_tests() {
     test_pop_stack_contains_two_tokens();
 }
 
+static void stack_print_all(struct Stack* stack) {
+    struct Token* token;
+
+    while((token = stack_pop(stack)) != 0) {
+        if(token->ltype != UNKNOWN) {
+            switch(token->ltype) {
+                case NUMBER:
+                    printf("num: %d\n", token->u.number);
+                    break;
+                case SPACE:
+                    printf("space!\n");
+                    break;
+                case OPEN_CURLY:
+                    printf("Open curly brace '%c'\n", token->u.onechar);
+                    break;
+                case CLOSE_CURLY:
+                    printf("Close curly brace '%c'\n", token->u.onechar);
+                    break;
+                case EXECUTABLE_NAME:
+                    printf("EXECUTABLE_NAME: %s\n", token->u.name);
+                    break;
+                case LITERAL_NAME:
+                    printf("LITERAL_NAME: %s\n", token->u.name);
+                    break;
+                default:
+                    printf("Unknown type %d\n", token->ltype);
+                    break;
+            }
+        }
+    }
+}
+
 int main() {
     unit_tests();
-
+    struct Token inputs[] = {
+        {NUMBER, {0}},
+        {EXECUTABLE_NAME, {0}},
+        {SPACE, {0}},
+        {OPEN_CURLY, {0}},
+        {CLOSE_CURLY, {0}},
+        {LITERAL_NAME, {0}},
+        {UNKNOWN, {0}}
+    };
+    inputs[0].u.number = 123;
+    inputs[1].u.name = "abc";
+    inputs[2].u.onechar = ' ';
+    inputs[3].u.onechar = '{';
+    inputs[4].u.onechar = '}';
+    inputs[5].u.name = "def";
+    struct Stack* stack = newStack();
+    int n = sizeof(inputs)/ sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        stack_push(stack, &inputs[i]);
+    }
+    stack_print_all(stack);
     return 0;
 }
