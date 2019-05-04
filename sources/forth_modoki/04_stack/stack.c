@@ -79,7 +79,7 @@ static void unit_tests() {
     test_pop_stack_contains_two_tokens();
 }
 
-static void stack_print_all(struct Stack* stack) {
+void stack_print_all(struct Stack* stack) {
     struct Token* token;
 
     while((token = stack_pop(stack)) != 0) {

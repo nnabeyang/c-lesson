@@ -23,5 +23,6 @@ struct Stack {
     struct Token* tokens[1];    
 };
 
+void stack_print_all(struct Stack* stack);
 void stack_push(struct Stack* stack, struct Token* token);
 struct Token* stack_pop(struct Stack* stack);
