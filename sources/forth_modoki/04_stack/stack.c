@@ -12,9 +12,14 @@ struct Token* stack_pop(struct Stack* stack) {
     return stack->tokens[stack->n-- - 1];
 }
 
-static void test_pop_stack_contains_one_token() {
+static struct Stack* newStack() {
     struct Stack* stack = malloc(sizeof(struct Stack) + sizeof(struct Token*) * STACK_SIZE);
     stack->n = 0;
+    return stack;
+}
+
+static void test_pop_stack_contains_one_token() {
+    struct Stack* stack = newStack();
     int expect_val = 123;
     int expect_type = NUMBER;
     struct Token input = {NUMBER, {expect_val}};
@@ -28,8 +33,7 @@ static void test_pop_stack_contains_one_token() {
 }
 
 static void test_pop_empty() {
-    struct Stack* stack = malloc(sizeof(struct Stack) + sizeof(struct Token*) * STACK_SIZE);
-    stack->n = 0;
+    struct Stack* stack = newStack();
     assert(0 == stack_pop(stack));
 }
 
