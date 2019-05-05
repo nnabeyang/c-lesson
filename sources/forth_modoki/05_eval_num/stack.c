@@ -41,11 +41,9 @@ static void assert_token(struct Token* actual, struct Token* expect) {
 }
 static void setup_test(struct Stack* stack) {
     struct Token inputs[2] = {
-        {NUMBER, {0}},
-        {EXECUTABLE_NAME, {0}}
+        {NUMBER, {.number = 123}},
+        {EXECUTABLE_NAME, {.name = "abc"}}
     };
-    inputs[0].u.number = 123;
-    inputs[1].u.name = "abc";
 
     stack_push(stack, &inputs[0]);
     stack_push(stack, &inputs[1]);
@@ -54,11 +52,10 @@ static void setup_test(struct Stack* stack) {
 static void test_copy_token() {
     struct Stack* stack = new_stack();
     struct Token expects[] = {
-        {NUMBER, {0}},
-        {EXECUTABLE_NAME, {0}}
+        {NUMBER, {.number = 123}},
+        {EXECUTABLE_NAME, {.name = "abc"}}
     };
-    expects[0].u.number = 123;
-    expects[1].u.name = "abc";
+
     setup_test(stack);
     assert_token(stack_pop(stack), &expects[1]);
     assert_token(stack_pop(stack), &expects[0]);
@@ -68,11 +65,9 @@ static void test_copy_token() {
 static void test_pop_stack_contains_two_tokens() {
     struct Stack* stack = new_stack();
     struct Token inputs[2] = {
-        {NUMBER, {0}},
-        {EXECUTABLE_NAME, {0}}
+        {NUMBER, {.number = 123}},
+        {EXECUTABLE_NAME, {.name = "abc"}}
     };
-    inputs[0].u.number = 123;
-    inputs[1].u.name = "abc";
 
     stack_push(stack, &inputs[0]);
     stack_push(stack, &inputs[1]);
@@ -85,8 +80,7 @@ static void test_pop_stack_contains_two_tokens() {
 
 static void test_pop_stack_contains_one_token() {
     struct Stack* stack = new_stack();
-    struct Token input = {NUMBER, {0}};
-    input.u.number = 123;
+    struct Token input = {NUMBER, {.number = 123}};
 
     stack_push(stack, &input);
     assert_token(stack_pop(stack), &input);
@@ -142,12 +136,12 @@ void stack_print_all(struct Stack* stack) {
 int main() {
     unit_tests();
     struct Token inputs[] = {
-        {NUMBER, {0}},
-        {EXECUTABLE_NAME, {0}},
-        {SPACE, {0}},
-        {OPEN_CURLY, {0}},
-        {CLOSE_CURLY, {0}},
-        {LITERAL_NAME, {0}},
+        {NUMBER, {.number = 123}},
+        {EXECUTABLE_NAME, {.name = "abc"}},
+        {SPACE, {.onechar = ' '}},
+        {OPEN_CURLY, {.onechar = '{'}},
+        {CLOSE_CURLY, {.onechar = '}'}},
+        {LITERAL_NAME, {.name = "def"}},
         {UNKNOWN, {0}}
     };
     inputs[0].u.number = 123;
