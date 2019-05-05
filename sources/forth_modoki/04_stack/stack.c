@@ -13,7 +13,7 @@ struct Token* stack_pop(struct Stack* stack) {
     return &stack->tokens[stack->n-- - 1];
 }
 
-static struct Stack* newStack() {
+static struct Stack* new_stack() {
     struct Stack* stack = malloc(sizeof(struct Stack) + sizeof(struct Token) * STACK_SIZE);
     stack->n = 0;
     return stack;
@@ -49,7 +49,7 @@ static void setup_test(struct Stack* stack) {
 }
 
 static void test_copy_token() {
-    struct Stack* stack = newStack();
+    struct Stack* stack = new_stack();
     struct Token expects[] = {
         {NUMBER, {.number = 123}},
         {EXECUTABLE_NAME, {.name = "abc"}}
@@ -62,7 +62,7 @@ static void test_copy_token() {
 }
 
 static void test_pop_stack_contains_two_tokens() {
-    struct Stack* stack = newStack();
+    struct Stack* stack = new_stack();
     struct Token inputs[2] = {
         {NUMBER, {.number = 123}},
         {EXECUTABLE_NAME, {.name = "abc"}}
@@ -78,7 +78,7 @@ static void test_pop_stack_contains_two_tokens() {
 }
 
 static void test_pop_stack_contains_one_token() {
-    struct Stack* stack = newStack();
+    struct Stack* stack = new_stack();
     struct Token input = {NUMBER, {.number = 123}};
 
     stack_push(stack, &input);
@@ -88,7 +88,7 @@ static void test_pop_stack_contains_one_token() {
 }
 
 static void test_pop_empty() {
-    struct Stack* stack = newStack();
+    struct Stack* stack = new_stack();
     assert(0 == stack_pop(stack));
 }
 
@@ -148,7 +148,7 @@ int main() {
     inputs[3].u.onechar = '{';
     inputs[4].u.onechar = '}';
     inputs[5].u.name = "def";
-    struct Stack* stack = newStack();
+    struct Stack* stack = new_stack();
     int n = sizeof(inputs)/ sizeof(struct Token);
     for(int i = 0; i < n; i++) {
         stack_push(stack, &inputs[i]);
