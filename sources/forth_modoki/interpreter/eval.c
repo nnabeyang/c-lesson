@@ -53,6 +53,19 @@ void eval() {
     }while(ch != EOF);
 }
 
+static void test_eval_num_add3() {
+    char *input = "/abc 12 def\n"
+                  "abc abc add";
+    int expect = 24;
+
+    cl_getc_set_src(input);
+
+    eval();
+
+    int actual = stack_pop(stack)->u.number;
+    assert(expect == actual);
+}
+
 static void test_eval_num_add2() {
     char *input = "/hoge 123 def hoge 2 add";
     int expect = 125;
@@ -125,6 +138,7 @@ static void eval_unit_tests() {
     test_eval_num_add();
     test_eval_stack_literal_name();
     test_eval_num_add2();
+    test_eval_num_add3();
 }
 
 static void unit_tests() {
