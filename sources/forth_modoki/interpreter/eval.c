@@ -32,7 +32,6 @@ void eval() {
                         struct Token* value = stack_pop(stack);
                         struct Token* key = stack_pop(stack);
                         dict_put(key->u.name, value);
-                        stack_push(stack, key);
                     } else {
                         struct Token out_val;
                         if(dict_get(token.u.name, &out_val)) {
@@ -51,6 +50,19 @@ void eval() {
             }
         }
     }while(ch != EOF);
+}
+
+static void test_eval_no_expression() {
+    char *input = "/abc 12 def\n"
+                  "abc abc";
+    struct Token expect = {NUMBER, {.number= 12}};
+
+    cl_getc_set_src(input);
+
+    eval();
+    assert_token(stack_pop(stack), &expect);
+    assert_token(stack_pop(stack), &expect);
+    assert(stack_pop(stack) == 0);
 }
 
 static void test_eval_num_add3() {
@@ -88,7 +100,7 @@ static void test_eval_stack_literal_name() {
 
     cl_getc_set_src(input);
     eval();
-    assert_token(stack_pop(stack), &expects[2]);
+    assert(stack_pop(stack) == 0);
 }
 
 static void test_eval_num_one() {
@@ -139,6 +151,7 @@ static void eval_unit_tests() {
     test_eval_stack_literal_name();
     test_eval_num_add2();
     test_eval_num_add3();
+    test_eval_no_expression();
 }
 
 static void unit_tests() {
