@@ -40,6 +40,16 @@ void stack_push(struct Stack* stack, struct Token* token);
 struct Token* stack_pop(struct Stack* stack);
 struct Stack* new_stack();
 
+struct KeyValue {
+    const char* key;
+    struct Token value;
+};
+
 void dict_put(const char* key, struct Token* token);
 int dict_get(const char* key, struct Token* out_token);
 void dict_print_all();
+
+int streq(const char *s1, const char *s2);
+void assert_token(struct Token* actual, struct Token* expect);
+void dict_unit_tests();
+void stack_unit_tests();

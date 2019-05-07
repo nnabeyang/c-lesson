@@ -44,26 +44,6 @@ void eval() {
     }while(ch != EOF);
 }
 
-static void assert_token(struct Token* actual, struct Token* expect) {
-    assert(actual->ltype == expect->ltype);
-    switch(actual->ltype) {
-        case NUMBER:
-            assert(actual->u.number == expect->u.number);
-            break;
-        case EXECUTABLE_NAME:
-        case LITERAL_NAME:
-            assert(strcmp(actual->u.name, expect->u.name) == 0);
-            break;
-        case OPEN_CURLY:
-        case CLOSE_CURLY:
-        case END_OF_FILE:
-            assert(actual->u.onechar == expect->u.onechar);
-            break;
-        default:
-            break;
-    }
-}
-
 static void test_eval_stack_literal_name() {
     char *input = "/hoge 123 def";
     struct Token expects[] = {
@@ -120,13 +100,22 @@ static void test_eval_num_add() {
     assert(expect == actual);
 }
 
-
-int main() {
+static void eval_unit_tests() {
     stack = new_stack();
     test_eval_num_one();
     test_eval_num_two();
     test_eval_num_add();
     test_eval_stack_literal_name();
+}
+
+static void unit_tests() {
+    stack_unit_tests();
+    dict_unit_tests();
+    eval_unit_tests();
+}
+
+int main() {
+    unit_tests();
 
     return 0;
 }

@@ -20,7 +20,7 @@ struct Stack* new_stack() {
     return stack;
 }
 
-static void assert_token(struct Token* actual, struct Token* expect) {
+void assert_token(struct Token* actual, struct Token* expect) {
     assert(actual->ltype == expect->ltype);
     switch(actual->ltype) {
         case NUMBER:
@@ -93,7 +93,7 @@ static void test_pop_empty() {
     assert(0 == stack_pop(stack));
 }
 
-static void unit_tests() {
+void stack_unit_tests() {
     test_pop_empty();
     test_pop_stack_contains_one_token();
     test_pop_stack_contains_two_tokens();
@@ -134,7 +134,7 @@ void stack_print_all(struct Stack* stack) {
 
 #if 0
 int main() {
-    unit_tests();
+    stack_unit_tests();
     struct Token inputs[] = {
         {NUMBER, {.number = 123}},
         {EXECUTABLE_NAME, {.name = "abc"}},
