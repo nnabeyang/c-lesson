@@ -26,8 +26,7 @@ void eval() {
                     if(streq(token.u.name, "add")) {
                         struct Token* right = stack_pop(stack);
                         struct Token* left = stack_pop(stack);
-                        struct Token sum = {NUMBER, {0}};
-                        sum.u.number = left->u.number + right->u.number;
+                        struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
                         stack_push(stack, &sum);
                     } else if (streq(token.u.name, "def")) {
                         struct Token* value = stack_pop(stack);
