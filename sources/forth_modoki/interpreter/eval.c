@@ -29,8 +29,18 @@ void eval() {
                         struct Token sum = {NUMBER, {0}};
                         sum.u.number = left->u.number + right->u.number;
                         stack_push(stack, &sum);
+                    } else if (streq(token.u.name, "def")) {
+                        struct Token* value = stack_pop(stack);
+                        struct Token* key = stack_pop(stack);
+                        dict_put(key->u.name, value);
+                        stack_push(stack, key);
                     } else {
-                        stack_push(stack, &token);
+                        struct Token out_val;
+                        if(dict_get(token.u.name, &out_val)) {
+                            stack_push(stack, &out_val);
+                        } else {
+                            stack_push(stack, &token);
+                        }
                     }
                     break;
                 case LITERAL_NAME:
@@ -44,6 +54,18 @@ void eval() {
     }while(ch != EOF);
 }
 
+static void test_eval_num_add2() {
+    char *input = "/hoge 123 def hoge 2 add";
+    int expect = 125;
+
+    cl_getc_set_src(input);
+
+    eval();
+
+    int actual = stack_pop(stack)->u.number;
+    assert(expect == actual);
+}
+
 static void test_eval_stack_literal_name() {
     char *input = "/hoge 123 def";
     struct Token expects[] = {
@@ -54,10 +76,7 @@ static void test_eval_stack_literal_name() {
 
     cl_getc_set_src(input);
     eval();
-    int n = sizeof(expects) / sizeof(struct Token);
-    for(int i = 0; i < n; i++) {
-        assert_token(stack_pop(stack), &expects[i]);
-    }
+    assert_token(stack_pop(stack), &expects[2]);
 }
 
 static void test_eval_num_one() {
@@ -106,6 +125,7 @@ static void eval_unit_tests() {
     test_eval_num_two();
     test_eval_num_add();
     test_eval_stack_literal_name();
+    test_eval_num_add2();
 }
 
 static void unit_tests() {
