@@ -11,7 +11,7 @@ static int isalpha(int ch) {
 static int isdigit(int ch) {
     return '0' <= ch && ch <= '9';
 }
-#define skip_white_space(c) while(c == ' ') c = cl_getc()
+#define skip_white_space(c) while(c == ' ' || c == '\n') c = cl_getc()
 static int parse_one_name(int c, struct Token *out_token) {
     char* buf = malloc(sizeof(char) * NAME_SIZE);
     char* p = buf;
@@ -28,7 +28,7 @@ int parse_one(int prev_ch, struct Token *out_token) {
     int c = prev_ch;
     if(c == EOF)
         c = cl_getc();
-    if(c == ' ') {
+    if(c == ' ' || c == '\n') {
         skip_white_space(c);
         out_token->ltype = SPACE;
         out_token->u.onechar = ' ';
