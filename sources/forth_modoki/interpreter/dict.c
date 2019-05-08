@@ -7,7 +7,7 @@ struct KeyNode {
     struct KeyNode* next;
 };
 
-#define DICT_SIZE  1024
+#define DICT_SIZE  16
 static struct KeyValue* dict_array[DICT_SIZE];
 static struct KeyNode keys = {NULL, NULL};
 static struct KeyNode* tail = &keys;
