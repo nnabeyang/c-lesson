@@ -22,19 +22,23 @@ int hash(const char* str) {
 
 void update_or_insert_list(struct KeyValue* head, const char* key, struct Token* token) {
     struct KeyValue* p = head;
+    struct KeyValue* lastNode;
     do {
         if(streq(p->key, key)) {
             p->value = *token;
             return;
-        }     
+        }
+        lastNode = p;
         p = p->next;
     }while(p != NULL);
+
     struct KeyValue* val = malloc(sizeof(struct KeyValue));
     val->next = NULL;
     val->key = malloc(sizeof(char) * strlen(key));
     strcpy(val->key, key);
     val->value = *token;
-    head->next = val;
+    lastNode->next = val;
+
     struct KeyNode* node = malloc(sizeof(struct KeyNode));
     node->key = val->key;
     node->next = NULL;
@@ -106,6 +110,9 @@ void dict_reset() {
 
 void key_value_str(char* buf, char* key, struct Token* token) {
     switch(token->ltype) {
+        case NUMBER:
+              sprintf(buf, "'%s': %d", key, token->u.number);
+              break;
         case EXECUTABLE_NAME:
             sprintf(buf, "'%s': '%s'", key, token->u.name);
             break;
@@ -132,6 +139,42 @@ void dict_print_all() {
         i++;
     }
     puts("\n}");
+}
+
+static void test_same_hash_values() {
+    char* hash_keys[] = {
+      "adf",
+      "aee",
+      "acg"
+    };
+    assert(hash(hash_keys[0]) == hash(hash_keys[1]));
+    assert(hash(hash_keys[0]) == hash(hash_keys[2]));
+    struct Token tokens[] = {
+        {EXECUTABLE_NAME, {.name = "xxxx"}},
+        {LITERAL_NAME, {.name = "yyyy"}},
+        {NUMBER, {.number = 123}}
+    };
+    int n = sizeof(hash_keys) / sizeof(char*);
+    for(int i = 0; i < n; i++) {
+        dict_put(hash_keys[i], &tokens[i]);
+    }
+
+    int idx = hash(hash_keys[0]);
+    struct KeyValue * p = dict_array[idx];
+
+    assert(streq("adf", p->key));
+    assert_token(&tokens[0], &p->value);
+
+    p = p->next;
+    assert(streq("aee", p->key));
+    assert_token(&tokens[1], &p->value);
+
+    p = p->next;
+    assert(streq("acg", p->key));
+    assert_token(&tokens[2], &p->value);
+    assert(p->next == NULL);
+
+    dict_reset();
 }
 
 static void test_dict_put_get_two() {
@@ -172,9 +215,9 @@ void dict_unit_tests() {
     test_dict_get_empty_case();
     test_dict_put_get_one();
     test_dict_put_get_two();
+    test_same_hash_values();
 }
 
-#if 0
 int main() {
     dict_unit_tests();
     struct Token inputs[] = {
@@ -188,4 +231,3 @@ int main() {
     dict_reset();
     return 0;
 }
-#endif
