@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#define STACK_SIZE 1024
+#define STACK_SIZE 16
 
 void stack_push(struct Stack* stack, struct Token* token) {
     stack->tokens[stack->n++] = *token;
@@ -20,25 +20,6 @@ struct Stack* new_stack() {
     return stack;
 }
 
-void assert_token(struct Token* actual, struct Token* expect) {
-    assert(actual->ltype == expect->ltype);
-    switch(actual->ltype) {
-        case NUMBER:
-            assert(actual->u.number == expect->u.number);
-            break;
-        case EXECUTABLE_NAME:
-        case LITERAL_NAME:
-            assert(strcmp(actual->u.name, expect->u.name) == 0);
-            break;
-        case OPEN_CURLY:
-        case CLOSE_CURLY:
-        case END_OF_FILE:
-            assert(actual->u.onechar == expect->u.onechar);
-            break;
-        default:
-            break;
-    }
-}
 static void setup_test(struct Stack* stack) {
     struct Token inputs[2] = {
         {NUMBER, {.number = 123}},

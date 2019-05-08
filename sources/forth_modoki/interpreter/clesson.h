@@ -41,13 +41,16 @@ struct Token* stack_pop(struct Stack* stack);
 struct Stack* new_stack();
 
 struct KeyValue {
-    const char* key;
+    char* key;
     struct Token value;
+    struct KeyValue *next;
 };
 
 void dict_put(const char* key, struct Token* token);
 int dict_get(const char* key, struct Token* out_token);
 void dict_print_all();
+void reset_dict();
+int hash(const char* str);
 
 int streq(const char *s1, const char *s2);
 void assert_token(struct Token* actual, struct Token* expect);

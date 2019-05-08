@@ -2,44 +2,115 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+struct KeyNode {
+    char* key;
+    struct KeyNode* next;
+};
 
-static int dict_pos = 0;
 #define DICT_SIZE  1024
-static struct KeyValue dict_array[DICT_SIZE];
+static struct KeyValue* dict_array[DICT_SIZE];
+static struct KeyNode keys = {NULL, NULL};
+static struct KeyNode* tail = &keys;
 
-void dict_put(const char* key, struct Token* token) {
-    for(int i = 0; i < dict_pos; i++) {
-        struct KeyValue* key_value = &dict_array[i];
-        if(streq(key, key_value->key)) {
-            key_value->value = *token;
+int hash(const char* str) {
+    unsigned int val = 0;
+    while(*str) {
+        val += *str++;
+    }
+    return (int)(val % DICT_SIZE);
+}
+
+void update_or_insert_list(struct KeyValue* head, const char* key, struct Token* token) {
+    struct KeyValue* p = head;
+    do {
+        if(streq(p->key, key)) {
+            p->value = *token;
             return;
         }     
+        p = p->next;
+    }while(p != NULL);
+    struct KeyValue* val = malloc(sizeof(struct KeyValue));
+    val->next = NULL;
+    val->key = malloc(sizeof(char) * strlen(key));
+    strcpy(val->key, key);
+    val->value = *token;
+    head->next = val;
+    struct KeyNode* node = malloc(sizeof(struct KeyNode));
+    node->key = val->key;
+    node->next = NULL;
+    tail->next = node;
+    tail = node;
+}
+
+void dict_put(const char* key, struct Token* token) {
+    int idx = hash(key);
+    struct KeyValue* head = dict_array[idx];
+    if(head == NULL) {
+        head = malloc(sizeof(struct KeyValue));
+        head->next = NULL;
+        head->key = malloc(sizeof(char) * strlen(key));
+        strcpy(head->key, key);
+        head->value = *token;
+
+        dict_array[idx] = head;
+        assert(tail->next == NULL);
+        struct KeyNode* node = malloc(sizeof(struct KeyNode));
+        node->key = head->key;
+        node->next = NULL;
+        tail->next = node;
+        tail = node;
+        return;
     }
-    struct KeyValue* key_value = &dict_array[dict_pos++];
-    char* new_key = malloc(sizeof(char) * strlen(key));
-    strcpy(new_key, key);
-    key_value->key = new_key;
-    key_value->value = *token;
+    update_or_insert_list(head, key, token);
 }
 
 int dict_get(const char* key, struct Token* out_token) {
-    for(int i = 0; i < dict_pos; i++) {
-        struct KeyValue key_value = dict_array[i];
-        if(streq(key, key_value.key)) {
-            *out_token = key_value.value;
+    int idx = hash(key);
+    struct KeyValue* head = dict_array[idx];
+    while(head != NULL) {
+        if(streq(head->key, key)) {
+            *out_token = head->value;
             return 1;
         }
+        head = head->next;
     }
     return 0;
 }
 
-void key_value_str(char* buf, struct KeyValue* key_value) {
-    switch(key_value->value.ltype) {
+void dict_reset() {
+    struct KeyNode* p = keys.next;
+    while(p != NULL) {
+        struct KeyNode* next = p->next;
+        int idx = hash(p->key);
+        struct KeyValue* head = dict_array[idx];
+        if(head->next == NULL) {
+            dict_array[idx] = NULL;
+        } else {
+            struct KeyValue* prev = head;
+            struct KeyValue* q = head->next;
+            while(q != NULL) {
+                if(streq(q->key, next->key)) {
+                    struct KeyValue* next = q->next;
+                    prev->next = next;
+                    break;
+                }
+                q = q->next;
+            }
+        }
+        p->next = NULL;
+        p = next;
+    }
+    keys.next = NULL;
+    tail = &keys;
+}
+
+void key_value_str(char* buf, char* key, struct Token* token) {
+    switch(token->ltype) {
         case EXECUTABLE_NAME:
-            sprintf(buf, "'%s': '%s'", key_value->key, key_value->value.u.name);
+            sprintf(buf, "'%s': '%s'", key, token->u.name);
             break;
         case LITERAL_NAME:
-            sprintf(buf, "'%s': '/%s'", key_value->key, key_value->value.u.name);
+            sprintf(buf, "'%s': '/%s'", key, token->u.name);
             break;
         default:
             break;
@@ -48,12 +119,17 @@ void key_value_str(char* buf, struct KeyValue* key_value) {
 
 void dict_print_all() {
     puts("{");
-    for(int i = 0; i < dict_pos; i++) {
+    struct KeyNode* p = keys.next;
+    int i = 0;
+    while(p != NULL) {
         if(i > 0) puts(",");
-        struct KeyValue key_value = dict_array[i];
+        struct Token out_value;
+        dict_get(p->key, &out_value);
         char out_buf[80];
-        key_value_str(out_buf, &key_value);
+        key_value_str(out_buf, p->key, &out_value);
         printf("%s", out_buf);
+        p = p->next;
+        i++;
     }
     puts("\n}");
 }
@@ -73,6 +149,7 @@ static void test_dict_put_get_two() {
 
     assert(dict_get("def", &actual));
     assert_token(&inputs[0], &actual);
+    dict_reset();
 }
 
 static void test_dict_put_get_one() {
@@ -82,33 +159,33 @@ static void test_dict_put_get_one() {
     assert(!dict_get("no_such_key", &actual));
     assert(dict_get("def", &actual));
     assert_token(&input, &actual);
+    dict_reset();
 }
 
 static void test_dict_get_empty_case() {
     struct Token actual;
     assert(!dict_get("key", &actual));
+    dict_reset();
 }
 
 void dict_unit_tests() {
     test_dict_get_empty_case();
-    dict_pos = 0;
     test_dict_put_get_one();
-    dict_pos = 0;
     test_dict_put_get_two();
 }
 
 #if 0
 int main() {
     dict_unit_tests();
-    dict_pos = 0;
     struct Token inputs[] = {
      {EXECUTABLE_NAME, {.name = "def"}},
      {LITERAL_NAME, {.name = "abc"}}
      };
 
-    dict_put(inputs[0].u.name, &inputs[0]);
-    dict_put(inputs[1].u.name, &inputs[1]);
+    dict_put("key1", &inputs[0]);
+    dict_put("key2", &inputs[1]);
     dict_print_all();
+    dict_reset();
     return 0;
 }
 #endif
