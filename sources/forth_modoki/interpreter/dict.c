@@ -218,6 +218,7 @@ void dict_unit_tests() {
     test_same_hash_values();
 }
 
+#if 0
 int main() {
     dict_unit_tests();
     struct Token inputs[] = {
@@ -231,3 +232,4 @@ int main() {
     dict_reset();
     return 0;
 }
+#endif
