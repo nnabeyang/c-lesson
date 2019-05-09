@@ -4,6 +4,13 @@
 #include<string.h>
 
 struct Stack* stack;
+void add_op() {
+    struct Token* right = stack_pop(stack);
+    struct Token* left = stack_pop(stack);
+    struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
+    stack_push(stack, &sum);
+}
+
 void eval() {
     int ch = EOF;
     struct Token token = {
@@ -21,10 +28,7 @@ void eval() {
                     break;
                 case EXECUTABLE_NAME:
                     if(streq(token.u.name, "add")) {
-                        struct Token* right = stack_pop(stack);
-                        struct Token* left = stack_pop(stack);
-                        struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
-                        stack_push(stack, &sum);
+                        add_op();
                     } else if (streq(token.u.name, "def")) {
                         struct Token* value = stack_pop(stack);
                         struct Token* key = stack_pop(stack);
