@@ -10,10 +10,17 @@ void add_op() {
     struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
     stack_push(&sum);
 }
+void def_op() {
+    struct Token* value = stack_pop(stack);
+    struct Token* key = stack_pop(stack);
+    dict_put(key->u.name, value);
+}
 
 void register_primitives() {
     struct Token add = {ELEMENT_C_FUNC, {.cfunc = add_op}};
     dict_put("add", &add);
+    struct Token def = {ELEMENT_C_FUNC, {.cfunc = def_op}};
+    dict_put("def", &def);
 }
 
 void eval() {
@@ -31,12 +38,7 @@ void eval() {
                     break;
                 case SPACE:
                     break;
-                case EXECUTABLE_NAME:
-                    if (streq(token.u.name, "def")) {
-                        struct Token* value = stack_pop(stack);
-                        struct Token* key = stack_pop(stack);
-                        dict_put(key->u.name, value);
-                    } else {
+                case EXECUTABLE_NAME: {
                         struct Token elem;
                         if(dict_get(token.u.name, &elem) && elem.ltype == ELEMENT_C_FUNC) {
                             elem.u.cfunc();
