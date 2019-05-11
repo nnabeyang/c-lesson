@@ -11,6 +11,11 @@ void add_op() {
     stack_push(stack, &sum);
 }
 
+void register_primitives() {
+    struct Token add = {ELEMENT_C_FUNC, {.cfunc = add_op}};
+    dict_put("add", &add);
+}
+
 void eval() {
     int ch = EOF;
     struct Token token = {
@@ -27,18 +32,21 @@ void eval() {
                 case SPACE:
                     break;
                 case EXECUTABLE_NAME:
-                    if(streq(token.u.name, "add")) {
-                        add_op();
-                    } else if (streq(token.u.name, "def")) {
+                    if (streq(token.u.name, "def")) {
                         struct Token* value = stack_pop(stack);
                         struct Token* key = stack_pop(stack);
                         dict_put(key->u.name, value);
                     } else {
-                        struct Token out_val;
-                        if(dict_get(token.u.name, &out_val)) {
-                            stack_push(stack, &out_val);
+                        struct Token elem;
+                        if(dict_get(token.u.name, &elem) && elem.ltype == ELEMENT_C_FUNC) {
+                            elem.u.cfunc();
                         } else {
-                            stack_push(stack, &token);
+                            struct Token out_val;
+                            if(dict_get(token.u.name, &out_val)) {
+                                stack_push(stack, &out_val);
+                            } else {
+                                stack_push(stack, &token);
+                            }
                         }
                     }
                     break;
@@ -140,8 +148,7 @@ static void test_eval_num_add() {
 
     eval();
 
-    int actual = stack_pop(stack)->u.number;
-    assert(expect == actual);
+    assert(stack_pop(stack)->u.number == expect);
 }
 
 static void eval_unit_tests() {
@@ -158,6 +165,7 @@ static void eval_unit_tests() {
 static void unit_tests() {
     stack_unit_tests();
     dict_unit_tests();
+    register_primitives();
     eval_unit_tests();
 }
 

@@ -12,6 +12,7 @@ enum LexicalType {
     SPACE,
     EXECUTABLE_NAME,
     LITERAL_NAME,
+    ELEMENT_C_FUNC,
     OPEN_CURLY,
     CLOSE_CURLY,
     END_OF_FILE,
@@ -24,6 +25,7 @@ struct Token {
         int number;
         char onechar;
         char *name;
+        void (*cfunc)();
     } u;
 };
 
