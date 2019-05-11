@@ -4,74 +4,71 @@
 #include <stdlib.h>
 #include <string.h>
 #define STACK_SIZE 1024
+static int stack_pos = 0;
+static struct Token tokens[STACK_SIZE];
 
-void stack_push(struct Stack* stack, struct Token* token) {
-    stack->tokens[stack->n++] = *token;
+void stack_push(struct Token* token) {
+    tokens[stack_pos++] = *token;
 }
 
-struct Token* stack_pop(struct Stack* stack) {
-    if(stack->n == 0) return 0;
-    return &stack->tokens[stack->n-- - 1];
+struct Token* stack_pop() {
+    if(stack_pos == 0) return 0;
+    return &tokens[stack_pos-- - 1];
 }
 
-struct Stack* new_stack() {
-    struct Stack* stack = malloc(sizeof(struct Stack) + sizeof(struct Token) * STACK_SIZE);
-    stack->n = 0;
-    return stack;
+void stack_reset() {
+    stack_pos = 0;
 }
 
-static void setup_test(struct Stack* stack) {
+static void setup_test() {
     struct Token inputs[2] = {
         {NUMBER, {.number = 123}},
         {EXECUTABLE_NAME, {.name = "abc"}}
     };
 
-    stack_push(stack, &inputs[0]);
-    stack_push(stack, &inputs[1]);
+    stack_push(&inputs[0]);
+    stack_push(&inputs[1]);
 }
 
 static void test_copy_token() {
-    struct Stack* stack = new_stack();
     struct Token expects[] = {
         {NUMBER, {.number = 123}},
         {EXECUTABLE_NAME, {.name = "abc"}}
     };
 
-    setup_test(stack);
-    assert_token(stack_pop(stack), &expects[1]);
-    assert_token(stack_pop(stack), &expects[0]);
-    assert(stack_pop(stack) == 0);
+    setup_test();
+    assert_token(stack_pop(), &expects[1]);
+    assert_token(stack_pop(), &expects[0]);
+    assert(stack_pop() == 0);
 }
 
 static void test_pop_stack_contains_two_tokens() {
-    struct Stack* stack = new_stack();
     struct Token inputs[2] = {
         {NUMBER, {.number = 123}},
         {EXECUTABLE_NAME, {.name = "abc"}}
     };
 
-    stack_push(stack, &inputs[0]);
-    stack_push(stack, &inputs[1]);
+    stack_push(&inputs[0]);
+    stack_push(&inputs[1]);
 
-    assert_token(stack_pop(stack), &inputs[1]);
-    assert_token(stack_pop(stack), &inputs[0]);
+    assert_token(stack_pop(), &inputs[1]);
+    assert_token(stack_pop(), &inputs[0]);
 
-    assert(stack_pop(stack) == 0);
+    assert(stack_pop() == 0);
 }
 
 static void test_pop_stack_contains_one_token() {
-    struct Stack* stack = new_stack();
     struct Token input = {NUMBER, {.number = 123}};
 
-    stack_push(stack, &input);
-    assert_token(stack_pop(stack), &input);
+    stack_push(&input);
+    assert_token(stack_pop(), &input);
 
-    assert(0 == stack_pop(stack));
+    assert(0 == stack_pop());
 }
 
 static void test_pop_empty() {
-    struct Stack* stack = new_stack();
-    assert(0 == stack_pop(stack));
+    stack_reset();
+    assert(0 == stack_pop());
 }
 
 void stack_unit_tests() {
@@ -81,10 +78,10 @@ void stack_unit_tests() {
     test_copy_token();
 }
 
-void stack_print_all(struct Stack* stack) {
+void stack_print_all() {
     struct Token* token;
 
-    while((token = stack_pop(stack)) != 0) {
+    while((token = stack_pop()) != 0) {
         if(token->ltype != UNKNOWN) {
             switch(token->ltype) {
                 case NUMBER:
@@ -131,12 +128,12 @@ int main() {
     inputs[3].u.onechar = '{';
     inputs[4].u.onechar = '}';
     inputs[5].u.name = "def";
-    struct Stack* stack = new_stack();
+
     int n = sizeof(inputs)/ sizeof(struct Token);
     for(int i = 0; i < n; i++) {
-        stack_push(stack, &inputs[i]);
+        stack_push(&inputs[i]);
     }
-    stack_print_all(stack);
+    stack_print_all();
     return 0;
 }
 #endif

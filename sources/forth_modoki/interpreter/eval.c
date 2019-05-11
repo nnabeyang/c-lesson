@@ -8,7 +8,7 @@ void add_op() {
     struct Token* right = stack_pop(stack);
     struct Token* left = stack_pop(stack);
     struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
-    stack_push(stack, &sum);
+    stack_push(&sum);
 }
 
 void register_primitives() {
@@ -27,7 +27,7 @@ void eval() {
         if(token.ltype != UNKNOWN) {
             switch(token.ltype) {
                 case NUMBER:
-                    stack_push(stack, &token);
+                    stack_push(&token);
                     break;
                 case SPACE:
                     break;
@@ -43,15 +43,15 @@ void eval() {
                         } else {
                             struct Token out_val;
                             if(dict_get(token.u.name, &out_val)) {
-                                stack_push(stack, &out_val);
+                                stack_push(&out_val);
                             } else {
-                                stack_push(stack, &token);
+                                stack_push(&token);
                             }
                         }
                     }
                     break;
                 case LITERAL_NAME:
-                    stack_push(stack, &token);
+                    stack_push(&token);
                     break;
                 default:
                     printf("Unknown type %d\n", token.ltype);
@@ -152,7 +152,6 @@ static void test_eval_num_add() {
 }
 
 static void eval_unit_tests() {
-    stack = new_stack();
     test_eval_num_one();
     test_eval_num_two();
     test_eval_num_add();
