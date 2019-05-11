@@ -1,6 +1,15 @@
 #include "clesson.h"
 #include <string.h>
 #include <assert.h>
+static void setup() {
+    dict_reset();
+    stack_reset();
+    register_primitives();
+}
+void do_test(void (*test)()) {
+    setup();
+    test();
+}
 int streq(const char *s1, const char *s2) {
     return strcmp(s1, s2) == 0;
 }

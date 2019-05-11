@@ -35,7 +35,7 @@ void parser_print_all();
 void stack_print_all();
 void stack_push(struct Token* token);
 struct Token* stack_pop();
-void stack_rest();
+void stack_reset();
 
 struct KeyValue {
     char* key;
@@ -46,9 +46,11 @@ struct KeyValue {
 void dict_put(const char* key, struct Token* token);
 int dict_get(const char* key, struct Token* out_token);
 void dict_print_all();
-void reset_dict();
+void dict_reset();
 int hash(const char* str);
 
+void register_primitives();
+void do_test(void (*test)());
 int streq(const char *s1, const char *s2);
 void assert_token(struct Token* actual, struct Token* expect);
 void dict_unit_tests();

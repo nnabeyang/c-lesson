@@ -152,13 +152,19 @@ static void test_eval_num_add() {
 }
 
 static void eval_unit_tests() {
-    test_eval_num_one();
-    test_eval_num_two();
-    test_eval_num_add();
-    test_eval_stack_literal_name();
-    test_eval_num_add2();
-    test_eval_num_add3();
-    test_eval_no_expression();
+    void (* tests[])(void) = {
+        test_eval_num_one,
+        test_eval_num_two,
+        test_eval_num_add,
+        test_eval_stack_literal_name,
+        test_eval_num_add2,
+        test_eval_num_add3,
+        test_eval_no_expression
+    };
+    int n = sizeof(tests)/ sizeof(void (*)());
+    for(int i = 0; i < n; i++) {
+        do_test(tests[i]);
+    }
 }
 
 static void unit_tests() {
