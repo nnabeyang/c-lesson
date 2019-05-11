@@ -86,21 +86,7 @@ void dict_reset() {
     while(p != NULL) {
         struct KeyNode* next = p->next;
         int idx = hash(p->key);
-        struct KeyValue* head = dict_array[idx];
-        if(head->next == NULL) {
-            dict_array[idx] = NULL;
-        } else {
-            struct KeyValue* prev = head;
-            struct KeyValue* q = head->next;
-            while(q != NULL) {
-                if(streq(q->key, next->key)) {
-                    struct KeyValue* next = q->next;
-                    prev->next = next;
-                    break;
-                }
-                q = q->next;
-            }
-        }
+        dict_array[idx] = NULL;
         p->next = NULL;
         p = next;
     }
