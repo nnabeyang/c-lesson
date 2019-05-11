@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#define STACK_SIZE 16
+#define STACK_SIZE 1024
 
 void stack_push(struct Stack* stack, struct Token* token) {
     stack->tokens[stack->n++] = *token;
