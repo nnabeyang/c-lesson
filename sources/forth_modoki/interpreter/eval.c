@@ -10,6 +10,24 @@ void add_op() {
     struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
     stack_push(&sum);
 }
+void sub_op() {
+    struct Token* right = stack_pop(stack);
+    struct Token* left = stack_pop(stack);
+    struct Token mul = {NUMBER, {.number = left->u.number - right->u.number}};
+    stack_push(&mul);
+}
+void mul_op() {
+    struct Token* right = stack_pop(stack);
+    struct Token* left = stack_pop(stack);
+    struct Token mul = {NUMBER, {.number = left->u.number * right->u.number}};
+    stack_push(&mul);
+}
+void div_op() {
+    struct Token* right = stack_pop(stack);
+    struct Token* left = stack_pop(stack);
+    struct Token mul = {NUMBER, {.number = left->u.number / right->u.number}};
+    stack_push(&mul);
+}
 void def_op() {
     struct Token* value = stack_pop(stack);
     struct Token* key = stack_pop(stack);
@@ -19,6 +37,12 @@ void def_op() {
 void register_primitives() {
     struct Token add = {ELEMENT_C_FUNC, {.cfunc = add_op}};
     dict_put("add", &add);
+    struct Token sub = {ELEMENT_C_FUNC, {.cfunc = sub_op}};
+    dict_put("sub", &sub);
+    struct Token mul = {ELEMENT_C_FUNC, {.cfunc = mul_op}};
+    dict_put("mul", &mul);
+    struct Token div = {ELEMENT_C_FUNC, {.cfunc = div_op}};
+    dict_put("div", &div);
     struct Token def = {ELEMENT_C_FUNC, {.cfunc = def_op}};
     dict_put("def", &def);
 }
@@ -61,6 +85,39 @@ void eval() {
             }
         }
     }while(ch != EOF);
+}
+
+static void test_eval_divide() {
+    char *input = "15 3 div";
+    struct Token expect = {NUMBER, {.number= 5}};
+
+    cl_getc_set_src(input);
+
+    eval();
+    assert_token(stack_pop(stack), &expect);
+    assert(stack_pop(stack) == 0);
+}
+
+static void test_eval_subtract() {
+    char *input = "15 7 sub";
+    struct Token expect = {NUMBER, {.number= 8}};
+
+    cl_getc_set_src(input);
+
+    eval();
+    assert_token(stack_pop(stack), &expect);
+    assert(stack_pop(stack) == 0);
+}
+
+static void test_eval_multiply() {
+    char *input = "2 3 mul";
+    struct Token expect = {NUMBER, {.number= 6}};
+
+    cl_getc_set_src(input);
+
+    eval();
+    assert_token(stack_pop(stack), &expect);
+    assert(stack_pop(stack) == 0);
 }
 
 static void test_eval_no_expression() {
@@ -161,7 +218,10 @@ static void eval_unit_tests() {
         test_eval_stack_literal_name,
         test_eval_num_add2,
         test_eval_num_add3,
-        test_eval_no_expression
+        test_eval_no_expression,
+        test_eval_multiply,
+        test_eval_subtract,
+        test_eval_divide
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
