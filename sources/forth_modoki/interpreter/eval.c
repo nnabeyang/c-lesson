@@ -72,6 +72,52 @@ void le_op() {
     stack_push(&op);
 }
 
+void pop_op() {
+    stack_pop();
+}
+void exch_op() {
+    struct Token right = *stack_pop();
+    struct Token left = *stack_pop();
+    stack_push(&right);
+    stack_push(&left);
+}
+void dup_op() {
+    struct Token* value = stack_pop();
+    struct Token cpy = *value;
+    stack_push(value);
+    stack_push(&cpy);
+}
+void index_op() {
+    struct Token* index = stack_pop();
+    assert(index->ltype == NUMBER);
+    int n = index->u.number;
+    struct Token** tokens = malloc(sizeof(struct Token*) * n);
+    struct Token** q = tokens;
+    for(int i = 0; i <= n; i++) {
+        *q++ = stack_pop();
+    }
+    struct Token value = *tokens[n];
+    while(q-- != tokens) {
+        stack_push(*q);
+    }
+    stack_push(&value);
+}
+void roll_op() {
+    struct Token* j_token = stack_pop();
+    assert(j_token->ltype == NUMBER);
+    int j = j_token->u.number;
+    struct Token* n_token = stack_pop();
+    assert(n_token->ltype == NUMBER);
+    int n = n_token->u.number;
+    struct Token* tokens = malloc(sizeof(struct Token) * n);
+    for(int i = 0; i < n; i++) {
+        tokens[n - 1 - i] = *stack_pop();
+    }
+    for(int i = 0; i < n; i++) {
+        stack_push(&tokens[(n + i - j) % n]);
+    }
+}
+
 void register_primitives() {
     struct Token add = {ELEMENT_C_FUNC, {.cfunc = add_op}};
     dict_put("add", &add);
@@ -107,6 +153,27 @@ void register_primitives() {
     {
     struct Token op  = {ELEMENT_C_FUNC, {.cfunc = le_op}};
     dict_put("le", &op);
+    }
+
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = pop_op}};
+    dict_put("pop", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = exch_op}};
+    dict_put("exch", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = dup_op}};
+    dict_put("dup", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = index_op}};
+    dict_put("index", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = roll_op}};
+    dict_put("roll", &op);
     }
 }
 
@@ -254,6 +321,87 @@ static void test_eval_exec_cmp_ops_(char* input, struct Token* expect) {
     eval();
     assert_token(stack_pop(), expect);
     assert(stack_pop() == 0);
+}
+
+static void test_eval_exec_stack_ops() {
+    {
+    char *input = "1 2 pop";
+    struct Token expect = {NUMBER, {.number= 1}};
+    cl_getc_set_src(input);
+    eval();
+    assert_token(stack_pop(), &expect);
+    assert(stack_pop() == 0);
+    }
+    {
+    char *input = "1 2 exch";
+    struct Token expects[] = {
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number = 2}}
+    };
+    cl_getc_set_src(input);
+    eval();
+    int n = sizeof(expects) / sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+    }
+    assert(stack_pop() == 0);
+    }
+    {
+    char *input = "1 2 dup";
+    struct Token expects[] = {
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}}
+    };
+    cl_getc_set_src(input);
+    eval();
+    int n = sizeof(expects) / sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+    }
+    assert(stack_pop() == 0);
+    }
+    {
+    char *input = "10 20 30 40 50 2 index";
+    struct Token expects[] = {
+        {NUMBER, {.number = 30}},
+        {NUMBER, {.number = 50}},
+        {NUMBER, {.number = 40}},
+        {NUMBER, {.number = 30}},
+        {NUMBER, {.number = 20}},
+        {NUMBER, {.number = 10}},
+    };
+    cl_getc_set_src(input);
+    eval();
+    int n = sizeof(expects) / sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+    }
+    assert(stack_pop() == 0);
+    }
+    {
+    char *input = "1 2 3 4 5 6 7 4 3 roll";
+    struct Token expects[] = {
+        {NUMBER, {.number = 4}},
+        {NUMBER, {.number = 7}},
+        {NUMBER, {.number = 6}},
+        {NUMBER, {.number = 5}},
+        {NUMBER, {.number = 3}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}},
+    };
+    cl_getc_set_src(input);
+    eval();
+    int n = sizeof(expects) / sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+    }
+    assert(stack_pop() == 0);
+    }
 }
 
 static void test_eval_exec_cmp_ops() {
@@ -596,6 +744,7 @@ static void eval_unit_tests() {
         test_eval_exec_array_exect_array_nest,
         test_eval_exec_array_exect_array_nest2,
         test_eval_exec_cmp_ops,
+        test_eval_exec_stack_ops,
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
