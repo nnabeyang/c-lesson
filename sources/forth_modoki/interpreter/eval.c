@@ -86,6 +86,7 @@ static int compile_exec_array(int ch, struct Token* out_token) {
     return ch;
 }
 
+void eval_exec_array();
 void eval() {
     int ch = EOF;
     struct Token token = {
@@ -111,14 +112,23 @@ void eval() {
                 break;
                 case EXECUTABLE_NAME: {
                         struct Token elem;
-                        if(dict_get(token.u.name, &elem) && elem.ltype == ELEMENT_C_FUNC) {
-                            elem.u.cfunc();
-                        } else {
-                            struct Token out_val;
-                            if(dict_get(token.u.name, &out_val)) {
-                                stack_push(&out_val);
-                            } else {
-                                stack_push(&token);
+                        if(dict_get(token.u.name, &elem)) {
+                            switch(elem.ltype) {
+                            case ELEMENT_C_FUNC:
+                                elem.u.cfunc();
+                                break;
+                            case EXECUTABLE_ARRAY:
+                                eval_exec_array(elem.u.byte_codes);
+                                break;
+                            default: {
+                                struct Token out_val;
+                                if(dict_get(token.u.name, &out_val)) {
+                                    stack_push(&out_val);
+                                } else {
+                                    stack_push(&token);
+                                }
+                            }
+                            break;
                             }
                         }
                     }
@@ -132,6 +142,99 @@ void eval() {
             }
         }
     }while(ch != EOF);
+}
+
+void eval_exec_array(struct ElementArray* elems) {
+    int n = elems->len;
+    for(int i = 0; i < n; i++) {
+        struct Token token = elems->elements[i];
+        switch(token.ltype) {
+        case NUMBER:
+            stack_push(&token);
+            break;
+        case EXECUTABLE_ARRAY:
+            eval_exec_array(token.u.byte_codes);
+            break;
+        case EXECUTABLE_NAME: {
+            struct Token elem;
+            if(dict_get(token.u.name, &elem)) {
+                switch(elem.ltype) {
+                case ELEMENT_C_FUNC:
+                elem.u.cfunc();
+                break;
+                case EXECUTABLE_ARRAY:
+                    eval_exec_array(elem.u.byte_codes);
+                break;
+                default: {
+                    struct Token out_val;
+                    if(dict_get(token.u.name, &out_val)) {
+                        stack_push(&out_val);
+                    } else {
+                        stack_push(&token);
+                    }
+                }
+                break;
+                }
+            }
+        }
+        break;
+        case LITERAL_NAME:
+            stack_push(&token);
+            break;
+        default:
+            printf("Unknown type %d\n", token.ltype);
+            break;
+        }
+    }
+}
+
+static void test_eval_exec_array_exect_array_nest2() {
+    char *input = "/ZZ {6} def\n"
+                  "/YY {4 ZZ 5} def\n"
+                  "/XX {1 2 YY 3} def\n"
+                  "XX"
+    ;
+    struct Token expects[] = {
+        {NUMBER, {.number = 3}},
+        {NUMBER, {.number = 5}},
+        {NUMBER, {.number = 6}},
+        {NUMBER, {.number = 4}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}}
+    };
+    cl_getc_set_src(input);
+    eval();
+
+    int n = sizeof(expects)/ sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        assert_token(stack_pop(), &expects[i]);
+    }
+    assert(stack_pop() == 0);
+}
+static void test_eval_exec_array_exect_array_nest() {
+    char *input = "/abc {23 {11 33 add} add} def\n"
+                  "abc"
+    ;
+    struct Token expect = {NUMBER, {.number = 67}};
+    cl_getc_set_src(input);
+    eval();
+
+    struct Token* token = stack_pop();
+    assert_token(token, &expect);
+    assert(stack_pop() == 0);
+}
+
+static void test_eval_exec_array_exect_array() {
+    char *input = "/abc {23 44 add} def\n"
+                  "abc"
+    ;
+    struct Token expect = {NUMBER, {.number = 67}};
+    cl_getc_set_src(input);
+    eval();
+
+    struct Token* token = stack_pop();
+    assert_token(token, &expect);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_exec_array_nest() {
@@ -377,7 +480,10 @@ static void eval_unit_tests() {
         test_eval_exec_array_one,
         test_eval_exec_array_two_element,
         test_eval_exec_array_two_element_array,
-        test_eval_exec_array_nest
+        test_eval_exec_array_nest,
+        test_eval_exec_array_exect_array,
+        test_eval_exec_array_exect_array_nest,
+        test_eval_exec_array_exect_array_nest2,
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
