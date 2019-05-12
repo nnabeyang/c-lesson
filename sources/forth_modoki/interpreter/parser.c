@@ -34,6 +34,13 @@ int parse_one(int prev_ch, struct Token *out_token) {
         out_token->u.onechar = ' ';
         return c;
     }
+    if(c == '%') {
+        c = cl_getc();
+        while(c != '\n' && c != EOF) c = cl_getc();
+        out_token->ltype = SPACE;
+        out_token->u.onechar = ' ';
+        return c;
+    }
     if(isdigit(c)) {
         int v = 0;
         do {

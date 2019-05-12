@@ -467,6 +467,8 @@ static void test_eval_exec_control_ops() {
     {
     char *input = "/factorial {\n"
                   "dup\n"
+                  "%スタックをいつも「途中経過、j」でwhileが評価されるとし、\n"
+                  "%jを途中経過に掛けてjを1減らす\n"
                   "{dup 1 gt}\n"
                   "{\n"
                   "1 sub\n"
