@@ -127,7 +127,7 @@ void eval() {
     }while(ch != EOF);
 }
 
-static void test_eval_exec_array1() {
+static void test_eval_exec_array_number() {
     char *input = "{27}";
     struct Token expect = {NUMBER, {.number= 27}};
 
@@ -278,7 +278,7 @@ static void eval_unit_tests() {
         test_eval_multiply,
         test_eval_subtract,
         test_eval_divide,
-        test_eval_exec_array1
+        test_eval_exec_array_number
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
