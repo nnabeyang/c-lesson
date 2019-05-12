@@ -3,34 +3,33 @@
 #include<stdio.h>
 #include<string.h>
 
-struct Stack* stack;
 void add_op() {
-    struct Token* right = stack_pop(stack);
-    struct Token* left = stack_pop(stack);
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
     struct Token sum = {NUMBER, {.number = left->u.number + right->u.number}};
     stack_push(&sum);
 }
 void sub_op() {
-    struct Token* right = stack_pop(stack);
-    struct Token* left = stack_pop(stack);
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
     struct Token mul = {NUMBER, {.number = left->u.number - right->u.number}};
     stack_push(&mul);
 }
 void mul_op() {
-    struct Token* right = stack_pop(stack);
-    struct Token* left = stack_pop(stack);
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
     struct Token mul = {NUMBER, {.number = left->u.number * right->u.number}};
     stack_push(&mul);
 }
 void div_op() {
-    struct Token* right = stack_pop(stack);
-    struct Token* left = stack_pop(stack);
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
     struct Token mul = {NUMBER, {.number = left->u.number / right->u.number}};
     stack_push(&mul);
 }
 void def_op() {
-    struct Token* value = stack_pop(stack);
-    struct Token* key = stack_pop(stack);
+    struct Token* value = stack_pop();
+    struct Token* key = stack_pop();
     dict_put(key->u.name, value);
 }
 
@@ -94,8 +93,8 @@ static void test_eval_divide() {
     cl_getc_set_src(input);
 
     eval();
-    assert_token(stack_pop(stack), &expect);
-    assert(stack_pop(stack) == 0);
+    assert_token(stack_pop(), &expect);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_subtract() {
@@ -105,8 +104,8 @@ static void test_eval_subtract() {
     cl_getc_set_src(input);
 
     eval();
-    assert_token(stack_pop(stack), &expect);
-    assert(stack_pop(stack) == 0);
+    assert_token(stack_pop(), &expect);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_multiply() {
@@ -116,8 +115,8 @@ static void test_eval_multiply() {
     cl_getc_set_src(input);
 
     eval();
-    assert_token(stack_pop(stack), &expect);
-    assert(stack_pop(stack) == 0);
+    assert_token(stack_pop(), &expect);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_no_expression() {
@@ -128,9 +127,9 @@ static void test_eval_no_expression() {
     cl_getc_set_src(input);
 
     eval();
-    assert_token(stack_pop(stack), &expect);
-    assert_token(stack_pop(stack), &expect);
-    assert(stack_pop(stack) == 0);
+    assert_token(stack_pop(), &expect);
+    assert_token(stack_pop(), &expect);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_num_add3() {
@@ -142,7 +141,7 @@ static void test_eval_num_add3() {
 
     eval();
 
-    int actual = stack_pop(stack)->u.number;
+    int actual = stack_pop()->u.number;
     assert(expect == actual);
 }
 
@@ -154,7 +153,7 @@ static void test_eval_num_add2() {
 
     eval();
 
-    int actual = stack_pop(stack)->u.number;
+    int actual = stack_pop()->u.number;
     assert(expect == actual);
 }
 
@@ -168,7 +167,7 @@ static void test_eval_stack_literal_name() {
 
     cl_getc_set_src(input);
     eval();
-    assert(stack_pop(stack) == 0);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_num_one() {
@@ -178,7 +177,7 @@ static void test_eval_num_one() {
     cl_getc_set_src(input);
     eval();
 
-    int actual = stack_pop(stack)->u.number;
+    int actual = stack_pop()->u.number;
     assert(expect == actual);
 }
 
@@ -191,8 +190,8 @@ static void test_eval_num_two() {
 
     eval();
 
-    int actual1 = stack_pop(stack)->u.number;
-    int actual2 = stack_pop(stack)->u.number;
+    int actual1 = stack_pop()->u.number;
+    int actual2 = stack_pop()->u.number;
 
     assert(expect1 == actual1);
     assert(expect2 == actual2);
@@ -207,7 +206,7 @@ static void test_eval_num_add() {
 
     eval();
 
-    assert(stack_pop(stack)->u.number == expect);
+    assert(stack_pop()->u.number == expect);
 }
 
 static void eval_unit_tests() {
