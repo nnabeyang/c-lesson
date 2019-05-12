@@ -48,7 +48,7 @@ void register_primitives() {
     dict_put("def", &def);
 }
 
-static int compile_exec_array(int ch) {
+static int compile_exec_array(int ch, struct Token* out_token) {
     struct Token tokens[MAX_NAME_OP_NUMBERS];
     struct Token token = {
         OPEN_CURLY,
@@ -64,6 +64,11 @@ static int compile_exec_array(int ch) {
                 case LITERAL_NAME:
                     tokens[len++] = token;
                     break;
+                case OPEN_CURLY:
+                    ch = compile_exec_array(ch, &tokens[len++]);
+                    ch = parse_one(ch, &token);
+                    assert(token.ltype == CLOSE_CURLY);
+                    break;
                 case SPACE:
                     break;
                 default:
@@ -77,7 +82,7 @@ static int compile_exec_array(int ch) {
     byte_codes->len = len;
     memcpy(byte_codes->elements, tokens, size);
     struct Token t = {EXECUTABLE_ARRAY, {.byte_codes = byte_codes}};
-    stack_push(&t);
+    *out_token = t;
     return ch;
 }
 
@@ -97,7 +102,9 @@ void eval() {
                 case SPACE:
                     break;
                 case OPEN_CURLY: {
-                    ch = compile_exec_array(ch);
+                    struct Token out_token;
+                    ch = compile_exec_array(ch, &out_token);
+                    stack_push(&out_token);
                 }
                 break;
                 case CLOSE_CURLY:
@@ -127,20 +134,109 @@ void eval() {
     }while(ch != EOF);
 }
 
-static void test_eval_exec_array_number() {
-    char *input = "{27}";
-    struct Token expect = {NUMBER, {.number= 27}};
-
+static void test_eval_exec_array_nest() {
+    char *input = "{1 {2} 3}";
+    struct Token expects[] = {
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 3}}
+    };
     cl_getc_set_src(input);
+    eval();
+    struct Token* token = stack_pop();
+    assert(token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* byte_codes = token->u.byte_codes;
+    assert(byte_codes->len == 3);
 
+    struct Token element = byte_codes->elements[0];
+    assert_token(&element, &expects[0]);
+
+    element = byte_codes->elements[1];
+    assert(element.ltype == EXECUTABLE_ARRAY);
+    assert(element.u.byte_codes->len == 1);
+    element = element.u.byte_codes->elements[0];
+    assert_token(&element, &expects[1]);
+
+    element = byte_codes->elements[2];
+    assert_token(&element, &expects[2]);
+
+    assert(stack_pop() == 0);
+}
+
+static void test_eval_exec_array_two_element_array() {
+    char *input = "{1} {2}";
+    struct Token expects[] = {
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}}
+    };
+    cl_getc_set_src(input);
+    eval();
+    {
+    struct Token* token = stack_pop();
+    assert(token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* byte_codes = token->u.byte_codes;
+    assert(byte_codes->len == 1);
+    struct Token element = byte_codes->elements[0];
+    assert_token(&element, &expects[0]);
+    }
+    {
+    struct Token* token = stack_pop();
+    assert(token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* byte_codes = token->u.byte_codes;
+    assert(byte_codes->len == 1);
+    struct Token element = byte_codes->elements[0];
+    assert_token(&element, &expects[1]);
+    }
+    assert(stack_pop() == 0);
+
+}
+
+static void test_eval_exec_array_two_element() {
+    char *input = "{1 2}";
+    struct Token expects[] = {
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number = 2}}
+    };
+    cl_getc_set_src(input);
+    eval();
+    struct Token* token = stack_pop();
+    assert(token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* byte_codes = token->u.byte_codes;
+    assert(byte_codes->len == 2);
+    struct Token element = byte_codes->elements[0];
+    assert_token(&element, &expects[0]);
+    element = byte_codes->elements[1];
+    assert_token(&element, &expects[1]);
+    assert(stack_pop() == 0);
+}
+
+static void test_eval_exec_array(char *input, struct Token* expect) {
+    cl_getc_set_src(input);
     eval();
     struct Token* token = stack_pop();
     assert(token->ltype == EXECUTABLE_ARRAY);
     struct ElementArray* byte_codes = token->u.byte_codes;
     assert(byte_codes->len == 1);
     struct Token element = byte_codes->elements[0];
-    assert_token(&element, &expect);
+    assert_token(&element, expect);
     assert(stack_pop() == 0);
+}
+
+static void test_eval_exec_array_one() {
+    char *inputs[] = {
+        "{27}",
+        "{/abc}",
+        "{abc}"
+    };
+    struct Token expects[] = {
+        {NUMBER, {.number= 27}},
+        {LITERAL_NAME, {.name = "abc"}},
+        {EXECUTABLE_NAME, {.name = "abc"}}
+    };
+    int n = sizeof(inputs)/ sizeof(char*);
+    for(int i = 0; i < n; i++) {
+        test_eval_exec_array(inputs[i], &expects[i]);
+    }
 }
 
 static void test_eval_divide() {
@@ -278,7 +374,10 @@ static void eval_unit_tests() {
         test_eval_multiply,
         test_eval_subtract,
         test_eval_divide,
-        test_eval_exec_array_number
+        test_eval_exec_array_one,
+        test_eval_exec_array_two_element,
+        test_eval_exec_array_two_element_array,
+        test_eval_exec_array_nest
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
