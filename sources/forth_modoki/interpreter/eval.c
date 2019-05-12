@@ -35,6 +35,43 @@ void def_op() {
     dict_put(key->u.name, value);
 }
 
+void eq_op() {
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
+    struct Token op = {NUMBER, {.number = left->u.number == right->u.number}};
+    stack_push(&op);
+}
+void neq_op() {
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
+    struct Token op = {NUMBER, {.number = left->u.number != right->u.number}};
+    stack_push(&op);
+}
+void gt_op() {
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
+    struct Token op = {NUMBER, {.number = left->u.number > right->u.number}};
+    stack_push(&op);
+}
+void ge_op() {
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
+    struct Token op = {NUMBER, {.number = left->u.number >= right->u.number}};
+    stack_push(&op);
+}
+void lt_op() {
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
+    struct Token op = {NUMBER, {.number = left->u.number < right->u.number}};
+    stack_push(&op);
+}
+void le_op() {
+    struct Token* right = stack_pop();
+    struct Token* left = stack_pop();
+    struct Token op = {NUMBER, {.number = left->u.number <= right->u.number}};
+    stack_push(&op);
+}
+
 void register_primitives() {
     struct Token add = {ELEMENT_C_FUNC, {.cfunc = add_op}};
     dict_put("add", &add);
@@ -46,6 +83,31 @@ void register_primitives() {
     dict_put("div", &div);
     struct Token def = {ELEMENT_C_FUNC, {.cfunc = def_op}};
     dict_put("def", &def);
+
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = eq_op}};
+    dict_put("eq", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = neq_op}};
+    dict_put("neq", &op);
+    }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = gt_op}};
+    dict_put("gt", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = ge_op}};
+    dict_put("ge", &op);
+    }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = lt_op}};
+    dict_put("lt", &op);
+    }
+    {
+    struct Token op  = {ELEMENT_C_FUNC, {.cfunc = le_op}};
+    dict_put("le", &op);
+    }
 }
 
 static int compile_exec_array(int ch, struct Token* out_token) {
@@ -185,6 +247,55 @@ void eval_exec_array(struct ElementArray* elems) {
             printf("Unknown type %d\n", token.ltype);
             break;
         }
+    }
+}
+static void test_eval_exec_cmp_ops_(char* input, struct Token* expect) {
+    cl_getc_set_src(input);
+    eval();
+    assert_token(stack_pop(), expect);
+    assert(stack_pop() == 0);
+}
+
+static void test_eval_exec_cmp_ops() {
+    char *inputs[] = {
+        "1 1 eq",
+        "1 2 eq",
+        "1 2 neq",
+        "1 1 neq",
+        "2 1 gt",
+        "2 2 gt",
+        "2 3 gt",
+        "1 2 lt",
+        "2 2 lt",
+        "3 2 lt",
+        "2 1 ge",
+        "2 2 ge",
+        "2 3 ge",
+        "1 2 le",
+        "2 2 le",
+        "3 2 le",
+    };
+    struct Token expects[] = {
+        {NUMBER, {.number= 1}},
+        {NUMBER, {.number = 0}},
+        {NUMBER, {.number= 1}},
+        {NUMBER, {.number = 0}},
+        {NUMBER, {.number= 1}},
+        {NUMBER, {.number = 0}},
+        {NUMBER, {.number= 0}},
+        {NUMBER, {.number= 1}},
+        {NUMBER, {.number = 0}},
+        {NUMBER, {.number= 0}},
+        {NUMBER, {.number= 1}},
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number= 0}},
+        {NUMBER, {.number= 1}},
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number= 0}},
+    };
+    int n = sizeof(inputs)/ sizeof(char*);
+    for(int i = 0; i < n; i++) {
+        test_eval_exec_cmp_ops_(inputs[i], &expects[i]);
     }
 }
 
@@ -484,6 +595,7 @@ static void eval_unit_tests() {
         test_eval_exec_array_exect_array,
         test_eval_exec_array_exect_array_nest,
         test_eval_exec_array_exect_array_nest2,
+        test_eval_exec_cmp_ops,
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
