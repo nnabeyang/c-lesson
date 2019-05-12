@@ -6,6 +6,7 @@ return EOF if end of file.
 */
 int cl_getc();
 void cl_getc_set_src(char* str);
+void cl_getc_set_fp(FILE* input_fp);
 
 enum LexicalType {
     NUMBER,

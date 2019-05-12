@@ -918,8 +918,22 @@ static void unit_tests() {
     eval_unit_tests();
 }
 
-int main() {
-    unit_tests();
+int main(int argc, char* argv[]) {
+    if(argc == 1) {
+        unit_tests();
+    } else {
+        FILE * fp;
+        if((fp = fopen(argv[1], "r")) == NULL) {
+            return 1;
+        }
+        cl_getc_set_fp(fp);
+        dict_reset();
+        stack_reset();
+        register_primitives();
+        eval();
+        fclose(fp);
+        stack_print_all();
+    }
 
     return 0;
 }
