@@ -2,6 +2,8 @@
 #include<assert.h>
 #include<stdio.h>
 #include<string.h>
+#include<stdlib.h>
+#define MAX_NAME_OP_NUMBERS 256
 
 void add_op() {
     struct Token* right = stack_pop();
@@ -46,6 +48,39 @@ void register_primitives() {
     dict_put("def", &def);
 }
 
+static int compile_exec_array(int ch) {
+    struct Token tokens[MAX_NAME_OP_NUMBERS];
+    struct Token token = {
+        OPEN_CURLY,
+        {.onechar = '{'}
+    };
+    int len = 0;
+    do {
+        ch = parse_one(ch, &token);
+        if(token.ltype != UNKNOWN) {
+            switch(token.ltype) {
+                case NUMBER:
+                case EXECUTABLE_NAME:
+                case LITERAL_NAME:
+                    tokens[len++] = token;
+                    break;
+                case SPACE:
+                    break;
+                default:
+                    printf("2:Unknown type %d\n", token.ltype);
+                    break;
+            }
+        }
+    }while(ch != '}');
+    int size = sizeof(struct ElementArray) + sizeof(struct Token) * len;
+    struct ElementArray* byte_codes = malloc(size);
+    byte_codes->len = len;
+    memcpy(byte_codes->elements, tokens, size);
+    struct Token t = {EXECUTABLE_ARRAY, {.byte_codes = byte_codes}};
+    stack_push(&t);
+    return ch;
+}
+
 void eval() {
     int ch = EOF;
     struct Token token = {
@@ -61,6 +96,12 @@ void eval() {
                     break;
                 case SPACE:
                     break;
+                case OPEN_CURLY: {
+                    ch = compile_exec_array(ch);
+                }
+                break;
+                case CLOSE_CURLY:
+                break;
                 case EXECUTABLE_NAME: {
                         struct Token elem;
                         if(dict_get(token.u.name, &elem) && elem.ltype == ELEMENT_C_FUNC) {
@@ -84,6 +125,22 @@ void eval() {
             }
         }
     }while(ch != EOF);
+}
+
+static void test_eval_exec_array1() {
+    char *input = "{27}";
+    struct Token expect = {NUMBER, {.number= 27}};
+
+    cl_getc_set_src(input);
+
+    eval();
+    struct Token* token = stack_pop();
+    assert(token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* byte_codes = token->u.byte_codes;
+    assert(byte_codes->len == 1);
+    struct Token element = byte_codes->elements[0];
+    assert_token(&element, &expect);
+    assert(stack_pop() == 0);
 }
 
 static void test_eval_divide() {
@@ -220,7 +277,8 @@ static void eval_unit_tests() {
         test_eval_no_expression,
         test_eval_multiply,
         test_eval_subtract,
-        test_eval_divide
+        test_eval_divide,
+        test_eval_exec_array1
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {

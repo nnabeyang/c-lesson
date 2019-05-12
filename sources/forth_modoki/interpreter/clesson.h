@@ -13,12 +13,14 @@ enum LexicalType {
     EXECUTABLE_NAME,
     LITERAL_NAME,
     ELEMENT_C_FUNC,
+    EXECUTABLE_ARRAY,
     OPEN_CURLY,
     CLOSE_CURLY,
     END_OF_FILE,
     UNKNOWN
 };
 
+struct ElementArray;
 struct Token {
     enum LexicalType ltype;
     union {
@@ -26,7 +28,13 @@ struct Token {
         char onechar;
         char *name;
         void (*cfunc)();
+        struct ElementArray* byte_codes;
     } u;
+};
+
+struct ElementArray {
+    int len;
+    struct Token elements[0];
 };
 
 int parse_one(int prev_ch, struct Token *out_token);
