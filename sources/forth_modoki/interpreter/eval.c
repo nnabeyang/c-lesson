@@ -4,7 +4,7 @@
 #include<string.h>
 #include<stdlib.h>
 #define MAX_NAME_OP_NUMBERS 256
-
+void eval_exec_array();
 void add_op() {
     struct Token* right = stack_pop();
     struct Token* left = stack_pop();
@@ -118,6 +118,64 @@ void roll_op() {
     }
 }
 
+void exec_op() {
+    struct Token* proc = stack_pop();
+    assert(proc->ltype == EXECUTABLE_ARRAY);
+    eval_exec_array(proc->u.byte_codes);
+}
+void if_op() {
+    struct Token* proc_token = stack_pop();
+    assert(proc_token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* proc = proc_token->u.byte_codes;
+    struct Token* cond_token = stack_pop();
+    assert(cond_token->ltype == NUMBER);
+    int cond = cond_token->u.number;
+    if(cond) {
+        eval_exec_array(proc);
+    }
+}
+void ifelse_op() {
+    struct Token* else_token = stack_pop();
+    assert(else_token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* else_proc = else_token->u.byte_codes;
+
+    struct Token* then_token = stack_pop();
+    assert(then_token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* then_proc = then_token->u.byte_codes;
+
+    struct Token* cond_token = stack_pop();
+    assert(cond_token->ltype == NUMBER);
+    int cond = cond_token->u.number;
+    eval_exec_array((cond)? then_proc: else_proc);
+}
+void repeat_op() {
+    struct Token* proc_token = stack_pop();
+    assert(proc_token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* proc = proc_token->u.byte_codes;
+    struct Token* n_token = stack_pop();
+    assert(n_token->ltype == NUMBER);
+    int n = n_token->u.number;
+    for(int i = 0; i < n; i++) {
+        eval_exec_array(proc);
+    }
+}
+
+void while_op() {
+    struct Token* body_token = stack_pop();
+    assert(body_token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* body = body_token->u.byte_codes;
+    struct Token* cond_token = stack_pop();
+    assert(cond_token->ltype == EXECUTABLE_ARRAY);
+    struct ElementArray* cond = cond_token->u.byte_codes;
+    eval_exec_array(cond);
+    int val = stack_pop()->u.number;
+    while(val) {
+        eval_exec_array(body);
+        eval_exec_array(cond);
+        val = stack_pop()->u.number;
+    }
+}
+
 void register_primitives() {
     struct Token add = {ELEMENT_C_FUNC, {.cfunc = add_op}};
     dict_put("add", &add);
@@ -175,6 +233,26 @@ void register_primitives() {
     struct Token op  = {ELEMENT_C_FUNC, {.cfunc = roll_op}};
     dict_put("roll", &op);
     }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = exec_op}};
+    dict_put("exec", &op);
+    }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = if_op}};
+    dict_put("if", &op);
+    }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = ifelse_op}};
+    dict_put("ifelse", &op);
+    }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = repeat_op}};
+    dict_put("repeat", &op);
+    }
+    {
+    struct Token op = {ELEMENT_C_FUNC, {.cfunc = while_op}};
+    dict_put("while", &op);
+    }
 }
 
 static int compile_exec_array(int ch, struct Token* out_token) {
@@ -215,7 +293,6 @@ static int compile_exec_array(int ch, struct Token* out_token) {
     return ch;
 }
 
-void eval_exec_array();
 void eval() {
     int ch = EOF;
     struct Token token = {
@@ -282,7 +359,7 @@ void eval_exec_array(struct ElementArray* elems) {
             stack_push(&token);
             break;
         case EXECUTABLE_ARRAY:
-            eval_exec_array(token.u.byte_codes);
+            stack_push(&token);
             break;
         case EXECUTABLE_NAME: {
             struct Token elem;
@@ -323,6 +400,98 @@ static void test_eval_exec_cmp_ops_(char* input, struct Token* expect) {
     assert(stack_pop() == 0);
 }
 
+static void test_eval_exec_control_ops() {
+    {
+    char *input = "{14 23 add} exec";
+    struct Token expect = {NUMBER, {.number = 37}};
+    cl_getc_set_src(input);
+    eval();
+    struct Token* actual = stack_pop();
+    assert_token(actual, &expect);
+    }
+    {
+    char *inputs[] = {
+        "1 {14 23 add} if",
+        "0 {14 23 add} if"
+    };
+    struct Token expect = {NUMBER, {.number = 37}};
+    for(int i = 0; i < 2; i++) {
+        cl_getc_set_src(inputs[i]);
+        eval();
+        struct Token* actual = stack_pop();
+        if(i == 0) {
+            assert_token(actual, &expect);
+        } else if(i == 1) {
+            assert(actual == 0);
+        }
+    }
+    }
+    {
+    char *inputs[] = {
+        "1 {23 14 add} {23 14 sub} ifelse",
+        "0 {23 14 add} {23 14 sub} ifelse"
+    };
+    struct Token expects[] = {
+        {NUMBER, {.number = 37}},
+        {NUMBER, {.number = 9}},
+    };
+    for(int i = 0; i < 2; i++) {
+        cl_getc_set_src(inputs[i]);
+        eval();
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+        assert(stack_pop() == 0);
+    }
+    }
+    {
+    char *input = "4 {1 2} repeat";
+    struct Token expects[] = {
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}},
+        {NUMBER, {.number = 2}},
+        {NUMBER, {.number = 1}},
+    };
+    cl_getc_set_src(input);
+    eval();
+    int n = sizeof(expects) / sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+    }
+    assert(stack_pop() == 0);
+    }
+    {
+    char *input = "/factorial {\n"
+                  "dup\n"
+                  "{dup 1 gt}\n"
+                  "{\n"
+                  "1 sub\n"
+                  "exch\n"
+                  "1 index\n"
+                  "mul\n"
+                  "exch\n"
+                  "} while\n"
+                  "pop\n"
+                  "} def\n"
+                  "3 factorial"
+    ;
+    struct Token expects[] = {
+        {NUMBER, {.number = 6}},
+    };
+    cl_getc_set_src(input);
+    eval();
+    int n = sizeof(expects) / sizeof(struct Token);
+    for(int i = 0; i < n; i++) {
+        struct Token* actual = stack_pop();
+        assert_token(actual, &expects[i]);
+    }
+    assert(stack_pop() == 0);
+    }
+}
 static void test_eval_exec_stack_ops() {
     {
     char *input = "1 2 pop";
@@ -468,18 +637,6 @@ static void test_eval_exec_array_exect_array_nest2() {
     for(int i = 0; i < n; i++) {
         assert_token(stack_pop(), &expects[i]);
     }
-    assert(stack_pop() == 0);
-}
-static void test_eval_exec_array_exect_array_nest() {
-    char *input = "/abc {23 {11 33 add} add} def\n"
-                  "abc"
-    ;
-    struct Token expect = {NUMBER, {.number = 67}};
-    cl_getc_set_src(input);
-    eval();
-
-    struct Token* token = stack_pop();
-    assert_token(token, &expect);
     assert(stack_pop() == 0);
 }
 
@@ -741,10 +898,10 @@ static void eval_unit_tests() {
         test_eval_exec_array_two_element_array,
         test_eval_exec_array_nest,
         test_eval_exec_array_exect_array,
-        test_eval_exec_array_exect_array_nest,
         test_eval_exec_array_exect_array_nest2,
         test_eval_exec_cmp_ops,
         test_eval_exec_stack_ops,
+        test_eval_exec_control_ops,
     };
     int n = sizeof(tests)/ sizeof(void (*)());
     for(int i = 0; i < n; i++) {
