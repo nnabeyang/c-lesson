@@ -26,6 +26,7 @@ putchar:
 */
 print:
   ldrb r3,[r0]
+  ldr r1,=0x101f1000
 _loop:
   // TODO: use putchar here someway.
   //

@@ -1122,7 +1122,7 @@ print:
     ldrb r3,[r0]
     ldr r1,=0x101f1000
 loop:
-    str r3,[r0]
+    str r3,[r1]
     add r0, r0, #1
     ldrb r3,[r0]
     cmp r3,#0
@@ -1138,7 +1138,7 @@ print:
     ldrb r3,[r0]  // r3に一文字読み込む
 loop:
     /*
-    str r3,[r0]
+    str r3,[r1]
        この行はコメントアウト。これをputcharに変えたい。
        つまりここでどうにかしてr3の内容をputcharで表示したい。
     */
