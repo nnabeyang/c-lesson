@@ -9,37 +9,25 @@ _start:
     ldr r0,=0x101f1000
     ldr r1,=0xdeadbeaf
 print_hex:
-    mov r2, #8
+    mov r2, #32
 loop:
-    mov r3, r1
-    mov r4, r2
-skip:
-    and r5, r3, #0xF
-    lsr r3, r3, #4
-    sub r4, r4, #1
-    cmp r4, #0
-    bne skip
-    cmp r5, #10
+    sub r2, r2, #4
+    lsr r3, r1, r2
+    and r3, r3, #0xF
+    cmp r3, #10
     bge print_alpha
 print_number:
-    add r5, r5, #0x30
+    add r3, r3, #0x30
     b print
 print_alpha:
-    add r5, r5, #55
+    add r3, r3, #55
 print:
-    str r5, [r0]
-    sub r2, r2, #1
+    str r3, [r0]
     cmp r2, #0
     bne loop
-    b finish
-    str r5, [r0]
-    sub r2, r2, #1
-    cmp r2, #0
-    bne loop
-finish:
-    mov r5,#0x0D
-    str r5,[r0]
-    mov r5,#0x0A
-    str r5,[r0]
+    mov r3,#0x0D
+    str r3,[r0]
+    mov r3,#0x0A
+    str r3,[r0]
 end:
     b end
