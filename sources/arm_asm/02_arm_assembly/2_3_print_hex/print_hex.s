@@ -31,10 +31,15 @@ print:
     sub r2, r2, #1
     cmp r2, #0
     bne loop
-    b end
+    b finish
     str r5, [r0]
     sub r2, r2, #1
     cmp r2, #0
     bne loop
+finish:
+    mov r5,#0x0D
+    str r5,[r0]
+    mov r5,#0x0A
+    str r5,[r0]
 end:
     b end
