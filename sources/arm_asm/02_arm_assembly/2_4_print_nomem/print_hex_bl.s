@@ -16,7 +16,12 @@ _start:
 end:
   b end
 
-
+/*
+r0 : Input of print_hex
+r1 : UART
+r2 : bit rotation number
+r3 : char(0-F) printing via UART
+*/
 print_hex:
     ldr r1,=0x101f1000
     mov r2, #32
