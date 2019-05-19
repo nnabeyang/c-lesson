@@ -1,3 +1,9 @@
+/*
+ arm-none-eabi-as putchar_bad.s -o putchar_bad.o
+ arm-none-eabi-ld putchar_bad.o -Ttext 0x00010000 -o putchar_bad.elf
+ arm-none-eabi-objcopy putchar_bad.elf -O binary putchar_bad.bin
+ qemu-system-arm -M versatilepb -m 128M -nographic -kernel putchar_bad.bin -serial mon:stdio
+*/
 .globl _start
 _start:
 
@@ -27,15 +33,20 @@ putchar:
 print:
   ldrb r3,[r0]
   ldr r1,=0x101f1000
+  mov r2, r0
+  mov r4, r14
+  ldrb r3,[r2]
 _loop:
   // TODO: use putchar here someway.
   //
 
-  add r0, r0, #1
-  ldrb r3,[r0]
+  mov r0, r3
+  bl putchar
+  add r2, r2, #1
+  ldrb r3,[r2]
   cmp r3,#0
   bne _loop
-  mov r15, r14
+  mov r15, r4
 
 msg1: .asciz "First text.\n"
 msg2: .asciz "Second text!\n"
