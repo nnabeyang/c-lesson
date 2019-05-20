@@ -1,4 +1,4 @@
-#include <stdarg.h>
+#include "common.h"
 
 
 static char buf[100*1024];
