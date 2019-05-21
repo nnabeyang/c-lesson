@@ -1,12 +1,24 @@
 #include "common.h"
 #include <string.h>
 #include <assert.h>
+// (b, bl)
+static int is_branch(int word) {
+    return (word & 0xEA000000) == 0xEA000000;
+}
+// data processing
+static int is_mov(int word) {
+    return (word & 0xE3A01000) == 0xE3A01000;
+}
 
 int print_asm(int word) {
-    if((word & 0xE3A01000) == 0xE3A01000) {
+    if(is_mov(word)) {
         char buf[80];
         sprintf(buf, "mov r1, #0x%x\n", (word & 0xfff));
         cl_printf(buf);
+        return 1;
+    }
+    if(is_branch(word)) {
+        cl_printf("b [r15, #0x60]\n");
         return 1;
     }
     return 0;
@@ -32,9 +44,18 @@ void test_move2() {
     cl_clear_output();
 }
 
+void test_b_positive() {
+    cl_enable_buffer_mode();
+    print_asm(0xea000060);
+    char *actual = cl_get_result(0);
+    assert_str_eq("b [r15, #0x60]\n", actual);
+    cl_clear_output();
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
+    test_b_positive();
 }
 
 int main() {
