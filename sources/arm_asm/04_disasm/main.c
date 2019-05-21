@@ -3,7 +3,7 @@
 #include <assert.h>
 
 int print_asm(int word) {
-    if(((word >> 12) & 0xfffff) == 0xE3A01) {
+    if((word & 0xE3A01000) == 0xE3A01000) {
         char buf[80];
         sprintf(buf, "mov r1, #0x%x\n", (word & 0xfff));
         cl_printf(buf);
