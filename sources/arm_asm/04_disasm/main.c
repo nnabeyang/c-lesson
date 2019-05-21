@@ -21,9 +21,9 @@ int print_asm(int word) {
         int offset = word & 0xffffff;
         char buf[80];
         if(offset <= 0x7fffff) {
-            sprintf(buf, "b [r15, #0x%x]\n", offset);
+            sprintf(buf, "b [r15, #0x%x]\n", offset << 2);
         } else {
-            sprintf(buf, "b [r15, #-0x%x]\n", (0x1000000 - offset));
+            sprintf(buf, "b [r15, #-0x%x]\n", (0x1000000 - offset) << 2);
         }
         cl_printf(buf);
         return 1;
@@ -53,7 +53,7 @@ void test_move2() {
 
 void test_b_positive() {
     cl_enable_buffer_mode();
-    print_asm(0xea000060);
+    print_asm(0xea000018);
     char *actual = cl_get_result(0);
     assert_str_eq("b [r15, #0x60]\n", actual);
     cl_clear_output();
@@ -61,7 +61,7 @@ void test_b_positive() {
 
 void test_b_negative() {
     cl_enable_buffer_mode();
-    print_asm(0xeafffff8);
+    print_asm(0xeafffffe);
     char *actual = cl_get_result(0);
     assert_str_eq("b [r15, #-0x8]\n", actual);
     cl_clear_output();
