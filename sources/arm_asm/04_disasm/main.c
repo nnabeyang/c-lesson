@@ -18,7 +18,14 @@ int print_asm(int word) {
         return 1;
     }
     if(is_branch(word)) {
-        cl_printf("b [r15, #0x60]\n");
+        int offset = word & 0xffffff;
+        char buf[80];
+        if(offset <= 0x7fffff) {
+            sprintf(buf, "b [r15, #0x%x]\n", offset);
+        } else {
+            sprintf(buf, "b [r15, #-0x%x]\n", (0x1000000 - offset));
+        }
+        cl_printf(buf);
         return 1;
     }
     return 0;
@@ -52,10 +59,19 @@ void test_b_positive() {
     cl_clear_output();
 }
 
+void test_b_negative() {
+    cl_enable_buffer_mode();
+    print_asm(0xeafffff8);
+    char *actual = cl_get_result(0);
+    assert_str_eq("b [r15, #-0x8]\n", actual);
+    cl_clear_output();
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
     test_b_positive();
+    test_b_negative();
 }
 
 int main() {
