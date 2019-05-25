@@ -6,6 +6,11 @@
 static int is_branch(int word) {
     return (word & 0xEA000000) == 0xEA000000;
 }
+
+static int is_bne(int word) {
+    return word == 0x1AFFFFFA;
+}
+
 // data processing
 static int is_mov(int word) {
     return (word & 0xE3A01000) == 0xE3A01000;
@@ -17,6 +22,14 @@ static int is_ldr(int word) {
 
 static int is_byte(int word) {
     return (word >> 22 & 0B1) == 1;
+}
+
+static int is_add(int word) {
+    return word == 0xE2800001;
+}
+
+static int is_cmp(int word) {
+    return word == 0xE3530000;
 }
 
 static int is_str(int word) {
@@ -52,6 +65,11 @@ int print_asm(int word) {
         cl_printf(buf);
         return 1;
     }
+    if(is_bne(word)) {
+        sprintf(buf, "bne 0xc\n");
+        cl_printf(buf);
+        return 1;
+    }
     if(is_ldr(word)) {
         const char* cmd = (is_byte(word)) ? "ldrb" : "ldr";
 
@@ -69,6 +87,16 @@ int print_asm(int word) {
     }
     if(is_str(word)) {
         sprintf(buf, "str r1, [r0]\n");
+        cl_printf(buf);
+        return 1;
+    }
+    if(is_add(word)) {
+        sprintf(buf, "add r1, r1, #0x1\n");
+        cl_printf(buf);
+        return 1;
+    }
+    if(is_cmp(word)) {
+        sprintf(buf, "cmp r3, #0x0\n");
         cl_printf(buf);
         return 1;
     }
@@ -121,6 +149,18 @@ void test_ldrb() {
     test_print_asm(0xe5d03000, "ldrb r3, [r0]\n", 1);
 }
 
+void test_add() {
+    test_print_asm(0xE2800001, "add r1, r1, #0x1\n", 1);
+}
+
+void test_cmp() {
+        test_print_asm(0xE3530000, "cmp r3, #0x0\n", 1);
+}
+
+void test_bne() {
+        test_print_asm(0x1AFFFFFA, "bne 0xc\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -131,6 +171,9 @@ void unit_tests() {
     test_dump_hex();
     test_ldr2();
     test_ldrb();
+    test_add();
+    test_cmp();
+    test_bne();
 }
 
 int main(int argc, char *argv[]) {
