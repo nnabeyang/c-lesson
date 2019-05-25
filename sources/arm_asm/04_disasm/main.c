@@ -10,21 +10,29 @@ static int is_mov(int word) {
     return (word & 0xE3A01000) == 0xE3A01000;
 }
 
+static int is_ldr(int word) {
+    return (word & 0xE5900000) == 0xE5900000;
+}
+
 int print_asm(int word) {
+    char buf[80];
     if(is_mov(word)) {
-        char buf[80];
         sprintf(buf, "mov r1, #0x%x\n", (word & 0xfff));
         cl_printf(buf);
         return 1;
     }
     if(is_branch(word)) {
         int offset = word & 0xffffff;
-        char buf[80];
         if(offset <= 0x7fffff) {
             sprintf(buf, "b [r15, #0x%x]\n", offset << 2);
         } else {
             sprintf(buf, "b [r15, #-0x%x]\n", (0x1000000 - offset) << 2);
         }
+        cl_printf(buf);
+        return 1;
+    }
+    if(is_ldr(word)) {
+        sprintf(buf, "ldr r0, [r15, #0x38]\n");
         cl_printf(buf);
         return 1;
     }
@@ -67,11 +75,20 @@ void test_b_negative() {
     cl_clear_output();
 }
 
+void test_ldr() {
+    cl_enable_buffer_mode();
+    print_asm(0xe59f0038);
+    char *actual = cl_get_result(0);
+    assert_str_eq("ldr r0, [r15, #0x38]\n", actual);
+    cl_clear_output();   
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
     test_b_positive();
     test_b_negative();
+    test_ldr();
 }
 
 int main() {
