@@ -15,6 +15,10 @@ static int is_ldr(int word) {
     return (word & 0xE5900000) == 0xE5900000;
 }
 
+static int is_byte(int word) {
+    return (word >> 22 & 0B1) == 1;
+}
+
 static int is_str(int word) {
     return (word & 0xE5800000) == 0xE5800000;
 }
@@ -49,9 +53,17 @@ int print_asm(int word) {
         return 1;
     }
     if(is_ldr(word)) {
+        const char* cmd = (is_byte(word)) ? "ldrb" : "ldr";
+
         int offset = word & 0xfff;
-        int rn = word >> 12 & 0xf;
-        sprintf(buf, "ldr r%d, [r15, #0x%X]\n", rn, offset);
+        int rn = word >> 16 & 0xf;
+        int rd = word >> 12 & 0xf;
+
+        if(offset == 0) {
+            sprintf(buf, "%s r%d, [r%d]\n", cmd, rd, rn);
+        } else {
+            sprintf(buf, "%s r%d, [r%d, #0x%X]\n", cmd, rd, rn, offset);
+        }
         cl_printf(buf);
         return 1;
     }
@@ -105,6 +117,10 @@ void test_dump_hex() {
     test_print_asm(0x64646464, "64 64 64 64\n", 0);
 }
 
+void test_ldrb() {
+    test_print_asm(0xe5d03000, "ldrb r3, [r0]\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -114,6 +130,7 @@ void unit_tests() {
     test_str();
     test_dump_hex();
     test_ldr2();
+    test_ldrb();
 }
 
 int main(int argc, char *argv[]) {
