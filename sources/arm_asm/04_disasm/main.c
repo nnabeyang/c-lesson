@@ -27,7 +27,7 @@ void dump_hex(int word) {
         n -= 8;
     }
     char buf[80];
-    sprintf(buf, "%02x %02x %02x %02x\n", vs[0], vs[1], vs[2], vs[3]);
+    sprintf(buf, "%02X %02X %02X %02X\n", vs[0], vs[1], vs[2], vs[3]);
     cl_printf(buf);
 }
 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
         while(fread(&word, size_word, 1, fp) == 1) {
                 cl_enable_buffer_mode();
                 print_asm(word);
-                printf("0x%x %s", addr, cl_get_result(0));
+                printf("0x%X %s", addr, cl_get_result(0));
                 addr += 4;
                 cl_clear_output();
         }
