@@ -49,7 +49,9 @@ int print_asm(int word) {
         return 1;
     }
     if(is_ldr(word)) {
-        sprintf(buf, "ldr r0, [r15, #0x38]\n");
+        int offset = word & 0xfff;
+        int rn = word >> 12 & 0xf;
+        sprintf(buf, "ldr r%d, [r15, #0x%X]\n", rn, offset);
         cl_printf(buf);
         return 1;
     }
@@ -91,6 +93,10 @@ void test_ldr() {
     test_print_asm(0xE59F0038, "ldr r0, [r15, #0x38]\n", 1);
 }
 
+void test_ldr2() {
+    test_print_asm(0xE59F1024, "ldr r1, [r15, #0x24]\n", 1);
+}
+
 void test_str() {
     test_print_asm(0xe5801000, "str r1, [r0]\n", 1);
 }
@@ -107,6 +113,7 @@ void unit_tests() {
     test_ldr();
     test_str();
     test_dump_hex();
+    test_ldr2();
 }
 
 int main(int argc, char *argv[]) {
