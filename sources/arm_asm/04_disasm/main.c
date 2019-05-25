@@ -95,6 +95,10 @@ void test_str() {
     test_print_asm(0xe5801000, "str r1, [r0]\n", 1);
 }
 
+void test_dump_hex() {
+    test_print_asm(0x64646464, "64 64 64 64\n", 0);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -102,6 +106,7 @@ void unit_tests() {
     test_b_negative();
     test_ldr();
     test_str();
+    test_dump_hex();
 }
 
 int main(int argc, char *argv[]) {
