@@ -65,53 +65,34 @@ int print_asm(int word) {
 static void assert_str_eq(const char* expect, const char* actual) {
     assert(strcmp(expect, actual) == 0);
 }
-
-void test_move1() {
+static void test_print_asm(int word, const char* expect, int is_asm) {
     cl_enable_buffer_mode();
-    print_asm(0xE3A01068);
-    char *actual = cl_get_result(0);
-    assert_str_eq("mov r1, #0x68\n", actual);
+    assert(print_asm(word) == is_asm);
+    assert_str_eq(expect, cl_get_result(0));
     cl_clear_output();
+}
+void test_move1() {
+   test_print_asm(0xE3A01068, "mov r1, #0x68\n", 1);
 }
 
 void test_move2() {
-    cl_enable_buffer_mode();
-    print_asm(0xe3a01065);
-    char *actual = cl_get_result(0);
-    assert_str_eq("mov r1, #0x65\n", actual);
-    cl_clear_output();
+    test_print_asm(0xE3A01065, "mov r1, #0x65\n", 1);
 }
 
 void test_b_positive() {
-    cl_enable_buffer_mode();
-    print_asm(0xea000018);
-    char *actual = cl_get_result(0);
-    assert_str_eq("b [r15, #0x60]\n", actual);
-    cl_clear_output();
+    test_print_asm(0xEA000018, "b [r15, #0x60]\n", 1);
 }
 
 void test_b_negative() {
-    cl_enable_buffer_mode();
-    print_asm(0xeafffffe);
-    char *actual = cl_get_result(0);
-    assert_str_eq("b [r15, #-0x8]\n", actual);
-    cl_clear_output();
+    test_print_asm(0xEAFFFFFE, "b [r15, #-0x8]\n", 1);
 }
 
 void test_ldr() {
-    cl_enable_buffer_mode();
-    print_asm(0xe59f0038);
-    char *actual = cl_get_result(0);
-    assert_str_eq("ldr r0, [r15, #0x38]\n", actual);
-    cl_clear_output();   
+    test_print_asm(0xE59F0038, "ldr r0, [r15, #0x38]\n", 1);
 }
 
 void test_str() {
-    cl_enable_buffer_mode();
-    print_asm(0xe5801000);
-    char *actual = cl_get_result(0);
-    assert_str_eq("str r1, [r0]\n", actual);
-    cl_clear_output();
+    test_print_asm(0xe5801000, "str r1, [r0]\n", 1);
 }
 
 void unit_tests() {
