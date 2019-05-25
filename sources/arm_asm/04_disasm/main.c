@@ -14,6 +14,10 @@ static int is_ldr(int word) {
     return (word & 0xE5900000) == 0xE5900000;
 }
 
+static int is_str(int word) {
+    return (word & 0xE5800000) == 0xE5800000;
+}
+
 int print_asm(int word) {
     char buf[80];
     if(is_mov(word)) {
@@ -33,6 +37,11 @@ int print_asm(int word) {
     }
     if(is_ldr(word)) {
         sprintf(buf, "ldr r0, [r15, #0x38]\n");
+        cl_printf(buf);
+        return 1;
+    }
+    if(is_str(word)) {
+        sprintf(buf, "str r1, [r0]\n");
         cl_printf(buf);
         return 1;
     }
@@ -83,12 +92,21 @@ void test_ldr() {
     cl_clear_output();   
 }
 
+void test_str() {
+    cl_enable_buffer_mode();
+    print_asm(0xe5801000);
+    char *actual = cl_get_result(0);
+    assert_str_eq("str r1, [r0]\n", actual);
+    cl_clear_output();
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
     test_b_positive();
     test_b_negative();
     test_ldr();
+    test_str();
 }
 
 int main() {
