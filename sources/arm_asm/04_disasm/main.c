@@ -1,6 +1,7 @@
 #include "common.h"
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 // (b, bl)
 static int is_branch(int word) {
     return (word & 0xEA000000) == 0xEA000000;
@@ -16,6 +17,18 @@ static int is_ldr(int word) {
 
 static int is_str(int word) {
     return (word & 0xE5800000) == 0xE5800000;
+}
+
+void dump_hex(int word) {
+    int n = 24;
+    int vs[4];
+    for(int i = 0; i < 4; i++) {
+        vs[i] = (word >> n) & 0xFF;
+        n -= 8;
+    }
+    char buf[80];
+    sprintf(buf, "%02x %02x %02x %02x\n", vs[0], vs[1], vs[2], vs[3]);
+    cl_printf(buf);
 }
 
 int print_asm(int word) {
@@ -45,6 +58,7 @@ int print_asm(int word) {
         cl_printf(buf);
         return 1;
     }
+    dump_hex(word);
     return 0;
 }
 
@@ -109,7 +123,28 @@ void unit_tests() {
     test_str();
 }
 
-int main() {
-    unit_tests();
-    return 0;
+int main(int argc, char *argv[]) {
+    if(argc == 1) {
+        unit_tests();
+    } else if(argc == 2) {
+        uint32_t word;
+        unsigned int size_word = sizeof(word);
+        FILE* fp = NULL;
+        fp = fopen(argv[1], "rb");
+        if(fp == NULL) {
+            fputs("ファイルオープンに失敗しました。\n", stderr);
+            return 1;
+        }
+        uint32_t addr = 0x00010000;
+        while(fread(&word, size_word, 1, fp) == 1) {
+                cl_enable_buffer_mode();
+                print_asm(word);
+                printf("0x%x %s", addr, cl_get_result(0));
+                addr += 4;
+                cl_clear_output();
+        }
+        fclose(fp);
+        return 0;
+    }
+    return 1;
 }
