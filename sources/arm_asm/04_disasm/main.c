@@ -29,7 +29,7 @@ static int is_byte(int word) {
 }
 
 static int is_add(int word) {
-    return word == 0xE2800001;
+    return (word & 0xE2800000) == 0xE2800000;
 }
 
 static int is_cmp(int word) {
@@ -101,7 +101,10 @@ int print_asm(int word) {
         return 1;
     }
     if(is_add(word)) {
-        sprintf(buf, "add r1, r1, #0x1\n");
+        int rn = word >> 16 & 0xf;
+        int rd = word >> 12 & 0xf;
+        int op2 = word & 0xfff;
+        sprintf(buf, "add r%d, r%d, #0x%X\n", rn, rd, op2);
         cl_printf(buf);
         return 1;
     }
@@ -168,7 +171,11 @@ void test_ldrb() {
 }
 
 void test_add() {
-    test_print_asm(0xE2800001, "add r1, r1, #0x1\n", 1);
+    test_print_asm(0xE2800001, "add r0, r0, #0x1\n", 1);
+}
+
+void test_add2() {
+    test_print_asm(0xE2855037, "add r5, r5, #0x37\n", 1);
 }
 
 void test_cmp() {
@@ -194,6 +201,7 @@ void unit_tests() {
     test_bne();
     test_move3();
     test_mov_no_immediate();
+    test_add2();
 }
 
 int main(int argc, char *argv[]) {
