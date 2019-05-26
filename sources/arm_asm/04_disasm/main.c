@@ -13,7 +13,11 @@ static int is_bne(int word) {
 
 // data processing
 static int is_mov(int word) {
-    return (word & 0xE3A00000) == 0xE3A00000;
+    return (word & 0xE1A00000) == 0xE1A00000;
+}
+
+static int is_mov_i(int word) {
+    return (word >> 25 & 0B1) == 1;
 }
 
 static int is_ldr(int word) {
@@ -52,7 +56,12 @@ int print_asm(int word) {
     char buf[80];
     if(is_mov(word)) {
         int rn = word >> 12 & 0xf;
-        sprintf(buf, "mov r%d, #0x%02X\n", rn, (word & 0xfff));
+        if(is_mov_i(word)) {
+            sprintf(buf, "mov r%d, #0x%02X\n", rn, (word & 0xfff));
+        } else {
+            int rm = word & 0B111;
+            sprintf(buf, "mov r%d, r%d\n", rn, rm);
+        }
         cl_printf(buf);
         return 1;
     }
@@ -126,6 +135,10 @@ void test_move3() {
     test_print_asm(0xE3A02008, "mov r2, #0x08\n", 1);
 }
 
+void test_mov_no_immediate() {
+    test_print_asm(0xE1A03001, "mov r3, r1\n", 1);
+}
+
 void test_b_positive() {
     test_print_asm(0xEA000018, "b [r15, #0x60]\n", 1);
 }
@@ -180,6 +193,7 @@ void unit_tests() {
     test_cmp();
     test_bne();
     test_move3();
+    test_mov_no_immediate();
 }
 
 int main(int argc, char *argv[]) {
