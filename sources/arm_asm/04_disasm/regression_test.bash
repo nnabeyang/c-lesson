@@ -1,10 +1,11 @@
 #!/bin/bash
 function check () {
     FILE_NAME=$1    
-    ./a.out  "./test/test_input/${FILE_NAME%.txt}.bin" | diff  -u - "./test/test_expect/${FILE_NAME}"
+    ./a.out  "./test/test_input/${FILE_NAME%.txt}.bin" | diff  -u "./test/test_expect/${FILE_NAME}" - >&2
     if [ $? = 0 ]; then
         echo "ok"
     else
+        echo $FILE_NAME >&2
         echo "ng"
     fi
 }
