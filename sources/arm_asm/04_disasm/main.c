@@ -4,11 +4,14 @@
 #include <stdint.h>
 // (b, bl)
 static int is_branch(int word) {
-    return (word & 0xEA000000) == 0xEA000000;
+    return (word & 0x0A000000) == 0x0A000000;
 }
 
-static int is_bne(int word) {
-    return (word & 0x1A000000) == 0x1A000000;
+static int is_b_always(int word) {
+    return (word & 0xE0000000) == 0xE0000000;
+}
+static int is_b_ne(int word) {
+    return (word & 0x10000000) == 0x10000000;
 }
 
 // data processing
@@ -70,22 +73,14 @@ int print_asm(int word) {
         return 1;
     }
     if(is_branch(word)) {
+        const char* cmd;
+        if(is_b_always(word)) cmd = "b";
+        if(is_b_ne(word)) cmd = "bne";
         int offset = word & 0xffffff;
         if(offset <= 0x7fffff) {
-            sprintf(buf, "b [r15, #0x%x]\n", offset << 2);
+            sprintf(buf, "%s [r15, #0x%x]\n", cmd, offset << 2);
         } else {
-            sprintf(buf, "b [r15, #-0x%x]\n", (0x1000000 - offset) << 2);
-        }
-        cl_printf(buf);
-        return 1;
-    }
-    if(is_bne(word)) {
-        //sprintf(buf, "bne 0xc\n");
-        int offset = word & 0xffffff;
-        if(offset <= 0x7fffff) {
-            sprintf(buf, "bne [r15, #0x%x]\n", offset << 2);
-        } else {
-            sprintf(buf, "bne [r15, #-0x%x]\n", (0x1000000 - offset) << 2);
+            sprintf(buf, "%s [r15, #-0x%x]\n", cmd, (0x1000000 - offset) << 2);
         }
         cl_printf(buf);
         return 1;
