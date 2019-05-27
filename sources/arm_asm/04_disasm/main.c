@@ -40,6 +40,10 @@ static int is_str(int word) {
     return (word & 0xE5800000) == 0xE5800000;
 }
 
+static int is_and(int word) {
+    return (word & 0xE2000000) == 0xE2000000;
+}
+
 void dump_hex(int word) {
     int n = 24;
     int vs[4];
@@ -113,6 +117,14 @@ int print_asm(int word) {
         cl_printf(buf);
         return 1;
     }
+    if(is_and(word)) {
+        int rn = word >> 16 & 0xf;
+        int rd = word >> 12 & 0xf;
+        int op2 = word & 0xfff;
+        sprintf(buf, "and r%d, r%d, #0x%X\n", rd, rn, op2);
+        cl_printf(buf);
+        return 1;
+    }
     dump_hex(word);
     return 0;
 }
@@ -135,7 +147,7 @@ void test_move2() {
 }
 
 void test_move3() {
-    test_print_asm(0xE3A02008, "mov r2, #0x08\n", 1);
+    test_print_asm(0xE3A02008, "mov r2, #0x8\n", 1);
 }
 
 void test_mov_no_immediate() {
@@ -186,6 +198,10 @@ void test_bne() {
         test_print_asm(0x1AFFFFFA, "bne 0xc\n", 1);
 }
 
+void test_and() {
+    test_print_asm(0xE203500F, "and r5, r3, #0xF\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -202,6 +218,7 @@ void unit_tests() {
     test_move3();
     test_mov_no_immediate();
     test_add2();
+    test_and();
 }
 
 int main(int argc, char *argv[]) {
