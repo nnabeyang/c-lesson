@@ -33,7 +33,7 @@ static int is_add(int word) {
 }
 
 static int is_cmp(int word) {
-    return word == 0xE3530000;
+    return (word & 0xE3500000) == 0xE3500000;
 }
 
 static int is_str(int word) {
@@ -113,7 +113,9 @@ int print_asm(int word) {
         return 1;
     }
     if(is_cmp(word)) {
-        sprintf(buf, "cmp r3, #0x0\n");
+        int offset = word & 0xfff;
+        int rn = word >> 16 & 0xf;
+        sprintf(buf, "cmp r%d, #0x%X\n", rn, offset);
         cl_printf(buf);
         return 1;
     }
@@ -194,6 +196,10 @@ void test_cmp() {
         test_print_asm(0xE3530000, "cmp r3, #0x0\n", 1);
 }
 
+void test_cmp2() {
+    test_print_asm(0xE3520000, "cmp r2, #0x0\n", 1);
+}
+
 void test_bne() {
         test_print_asm(0x1AFFFFFA, "bne 0xc\n", 1);
 }
@@ -219,6 +225,7 @@ void unit_tests() {
     test_mov_no_immediate();
     test_add2();
     test_and();
+    test_cmp2();
 }
 
 int main(int argc, char *argv[]) {
