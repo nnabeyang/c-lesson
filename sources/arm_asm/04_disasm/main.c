@@ -4,16 +4,8 @@
 #include <stdint.h>
 // (b, bl)
 static int is_branch(int word) {
-    return (word & 0x0A000000) == 0x0A000000;
+    return ((word >> 24) & 0xF) == 0B1010;
 }
-
-static int is_b_always(int word) {
-    return (word & 0xE0000000) == 0xE0000000;
-}
-static int is_b_ne(int word) {
-    return (word & 0x10000000) == 0x10000000;
-}
-
 // data processing
 static int is_mov(int word) {
     return (word & 0xE1A00000) == 0xE1A00000;
@@ -74,8 +66,23 @@ int print_asm(int word) {
     }
     if(is_branch(word)) {
         const char* cmd;
-        if(is_b_always(word)) cmd = "b";
-        if(is_b_ne(word)) cmd = "bne";
+        int cond = (word >> 28) &0xF;
+        if(cond == 0B0000) cmd = "beq";
+        if(cond == 0B0001) cmd = "bne";
+        if(cond == 0B0010) cmd = "cs";
+        if(cond == 0B0011) cmd = "cc";
+        if(cond == 0B0100) cmd = "mi";
+        if(cond == 0B0101) cmd = "pl";
+        if(cond == 0B0110) cmd = "vs";
+        if(cond == 0B0111) cmd = "vc";
+        if(cond == 0B1000) cmd = "hi";
+        if(cond == 0B1001) cmd = "ls";
+        if(cond == 0B1010) cmd = "bge";
+        if(cond == 0B1011) cmd = "lt";
+        if(cond == 0B1100) cmd = "gt";
+        if(cond == 0B1101) cmd = "le";
+        if(cond == 0B1110) cmd = "b";
+        if(cond == 0B1111) cmd = "nv";
         int offset = word & 0xffffff;
         if(offset <= 0x7fffff) {
             sprintf(buf, "%s [r15, #0x%x]\n", cmd, offset << 2);
@@ -165,6 +172,10 @@ void test_b_negative() {
     test_print_asm(0xEAFFFFFE, "b [r15, #-0x8]\n", 1);
 }
 
+void test_bge() {
+    test_print_asm(0xAA000001, "bge [r15, #0x4]\n", 1);
+}
+
 void test_ldr() {
     test_print_asm(0xE59F0038, "ldr r0, [r15, #0x38]\n", 1);
 }
@@ -232,6 +243,7 @@ void unit_tests() {
     test_and();
     test_cmp2();
     test_bne2();
+    test_bge();
 }
 
 int main(int argc, char *argv[]) {
