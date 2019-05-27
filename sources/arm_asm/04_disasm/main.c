@@ -57,7 +57,7 @@ int print_asm(int word) {
     if(is_mov(word)) {
         int rn = word >> 12 & 0xf;
         if(is_mov_i(word)) {
-            sprintf(buf, "mov r%d, #0x%02X\n", rn, (word & 0xfff));
+            sprintf(buf, "mov r%d, #0x%X\n", rn, (word & 0xfff));
         } else {
             int rm = word & 0B111;
             sprintf(buf, "mov r%d, r%d\n", rn, rm);
