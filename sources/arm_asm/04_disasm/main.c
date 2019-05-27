@@ -8,7 +8,7 @@ static int is_branch(int word) {
 }
 
 static int is_bne(int word) {
-    return word == 0x1AFFFFFA;
+    return (word & 0x1A000000) == 0x1A000000;
 }
 
 // data processing
@@ -80,7 +80,13 @@ int print_asm(int word) {
         return 1;
     }
     if(is_bne(word)) {
-        sprintf(buf, "bne 0xc\n");
+        //sprintf(buf, "bne 0xc\n");
+        int offset = word & 0xffffff;
+        if(offset <= 0x7fffff) {
+            sprintf(buf, "bne [r15, #0x%x]\n", offset << 2);
+        } else {
+            sprintf(buf, "bne [r15, #-0x%x]\n", (0x1000000 - offset) << 2);
+        }
         cl_printf(buf);
         return 1;
     }
@@ -201,7 +207,11 @@ void test_cmp2() {
 }
 
 void test_bne() {
-        test_print_asm(0x1AFFFFFA, "bne 0xc\n", 1);
+        test_print_asm(0x1AFFFFFA, "bne [r15, #-0x18]\n", 1);
+}
+
+void test_bne2() {
+        test_print_asm(0x1AFFFFEF, "bne [r15, #-0x44]\n", 1);
 }
 
 void test_and() {
@@ -226,6 +236,7 @@ void unit_tests() {
     test_add2();
     test_and();
     test_cmp2();
+    test_bne2();
 }
 
 int main(int argc, char *argv[]) {
