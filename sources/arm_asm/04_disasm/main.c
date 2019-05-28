@@ -47,6 +47,20 @@ static int is_ldmia(int word) {
     return (word & 0xE8BD0000) == 0xE8BD0000;
 }
 
+static int sprint_reg_list(char* reg_buf, int n, int regs) {
+        int shft = 0;
+        int m = n;
+        while(shft < 16) {
+            if(regs & (1 << shft)) {
+                if(m != n) {
+                    n += sprintf(&reg_buf[n], ", ");
+                }
+                n += sprintf(&reg_buf[n], "r%d", shft);
+            }
+            shft++;
+        }
+    return n;
+}
 void dump_hex(int word) {
     int n = 24;
     int vs[4];
@@ -136,44 +150,18 @@ int print_asm(int word) {
         cl_printf(buf);
         return 1;
     }
-    if(is_stmdb(word)) {
-        int regs = word & 0xFFFF;
-        int shft = 0;
-        int n = 0;
-        char reg_buf[160];
-        n += sprintf(&reg_buf[n], "stmdb r13!, {");
-        int m = n;
-        while(shft < 16) {
-            if(regs & (1 << shft)) {
-                if(m != n) {
-                    n += sprintf(&reg_buf[n], ", ");
-                }
-                n += sprintf(&reg_buf[n], "r%d", shft);
-            }
-            shft++;
+    if(is_stmdb(word) || is_ldmia(word)) {
+        const char* cmd = NULL;
+        if(is_stmdb(word)) {
+            cmd = "stmdb";
         }
-        sprintf(&reg_buf[n], "}\n");
-        cl_printf(reg_buf);
-        return 1;
-    }
-    if(is_ldmia(word)) {
-        int regs = word & 0xFFFF;
-        int shft = 0;
-        int n = 0;
-        char reg_buf[160];
-        n += sprintf(&reg_buf[n], "ldmia r13!, {");
-        int m = n;
-        while(shft < 16) {
-            if(regs & (1 << shft)) {
-                if(m != n) {
-                    n += sprintf(&reg_buf[n], ", ");
-                }
-                n += sprintf(&reg_buf[n], "r%d", shft);
-            }
-            shft++;
+        if(is_ldmia(word)) {
+            cmd = "ldmia";
         }
-        sprintf(&reg_buf[n], "}\n");
-        cl_printf(reg_buf);
+        int n = sprintf(buf, "%s r13!, {", cmd);
+        n = sprint_reg_list(buf, n, word & 0xFFFF);
+        sprintf(&buf[n], "}\n");
+        cl_printf(buf);
         return 1;
     }
     dump_hex(word);
