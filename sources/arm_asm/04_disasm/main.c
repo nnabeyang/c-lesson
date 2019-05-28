@@ -4,7 +4,7 @@
 #include <stdint.h>
 // (b, bl)
 static int is_branch(int word) {
-    return ((word >> 24) & 0xF) == 0B1010;
+    return (((word >> 24) & 0xF) & 0B1010) == 0B1010;
 }
 // data processing
 static int is_mov(int word) {
@@ -65,32 +65,23 @@ int print_asm(int word) {
         return 1;
     }
     if(is_branch(word)) {
-        const char* cmd;
+        const char* base_cmd = (((word >> 24) & 0B1) == 0B1)? "bl" : "b";
+        char cmd[16] = {0};
         int cond = (word >> 28) &0xF;
-        if(cond == 0B0000) cmd = "beq";
-        if(cond == 0B0001) cmd = "bne";
-        if(cond == 0B0010) cmd = "cs";
-        if(cond == 0B0011) cmd = "cc";
-        if(cond == 0B0100) cmd = "mi";
-        if(cond == 0B0101) cmd = "pl";
-        if(cond == 0B0110) cmd = "vs";
-        if(cond == 0B0111) cmd = "vc";
-        if(cond == 0B1000) cmd = "hi";
-        if(cond == 0B1001) cmd = "ls";
-        if(cond == 0B1010) cmd = "bge";
-        if(cond == 0B1011) cmd = "lt";
-        if(cond == 0B1100) cmd = "gt";
-        if(cond == 0B1101) cmd = "le";
-        if(cond == 0B1110) cmd = "b";
-        if(cond == 0B1111) cmd = "nv";
-        int offset = word & 0xffffff;
-        if(offset <= 0x7fffff) {
-            sprintf(buf, "%s [r15, #0x%x]\n", cmd, offset << 2);
-        } else {
-            sprintf(buf, "%s [r15, #-0x%x]\n", cmd, (0x1000000 - offset) << 2);
+        if(cond == 0B0000) sprintf(cmd, "%seq", base_cmd);
+        if(cond == 0B0001) sprintf(cmd , "%sne", base_cmd);
+        if(cond == 0B1010) sprintf(cmd, "%sge", base_cmd);
+        if(cond == 0B1110) sprintf(cmd, "%s", base_cmd);
+        if(cmd[0] != '\0') {
+            int offset = word & 0xffffff;
+            if(offset <= 0x7fffff) {
+                sprintf(buf, "%s [r15, #0x%x]\n", cmd, offset << 2);
+            } else {
+                sprintf(buf, "%s [r15, #-0x%x]\n", cmd, (0x1000000 - offset) << 2);
+            }
+            cl_printf(buf);
+            return 1;
         }
-        cl_printf(buf);
-        return 1;
     }
     if(is_ldr(word)) {
         const char* cmd = (is_byte(word)) ? "ldrb" : "ldr";
@@ -228,6 +219,10 @@ void test_and() {
     test_print_asm(0xE203500F, "and r5, r3, #0xF\n", 1);
 }
 
+void test_bl() {
+    test_print_asm(0xEB000005, "bl [r15, #0x14]\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -249,6 +244,7 @@ void unit_tests() {
     test_bne2();
     test_bge();
     test_mov_no_immediat2();
+    test_bl();
 }
 
 int main(int argc, char *argv[]) {
