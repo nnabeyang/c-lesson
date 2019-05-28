@@ -83,9 +83,9 @@ int print_asm(int word) {
         if(cmd[0] != '\0') {
             int offset = word & 0xffffff;
             if(offset <= 0x7fffff) {
-                sprintf(buf, "%s [r15, #0x%x]\n", cmd, offset << 2);
+                sprintf(buf, "%s [r15, #0x%X]\n", cmd, offset << 2);
             } else {
-                sprintf(buf, "%s [r15, #-0x%x]\n", cmd, (0x1000000 - offset) << 2);
+                sprintf(buf, "%s [r15, #-0x%X]\n", cmd, (0x1000000 - offset) << 2);
             }
             cl_printf(buf);
             return 1;
