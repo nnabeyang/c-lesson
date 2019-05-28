@@ -39,6 +39,10 @@ static int is_and(int word) {
     return (word & 0xE2000000) == 0xE2000000;
 }
 
+static int is_stmdb(int word) {
+    return (word & 0xE92D0000) == 0xE92D0000;
+}
+
 void dump_hex(int word) {
     int n = 24;
     int vs[4];
@@ -124,6 +128,26 @@ int print_asm(int word) {
         int op2 = word & 0xfff;
         sprintf(buf, "and r%d, r%d, #0x%X\n", rd, rn, op2);
         cl_printf(buf);
+        return 1;
+    }
+    if(is_stmdb(word)) {
+        int regs = word & 0xFFFF;
+        int shft = 0;
+        int n = 0;
+        char reg_buf[160];
+        n += sprintf(&reg_buf[n], "stmdb r13!, {");
+        int m = n;
+        while(shft < 16) {
+            if(regs & (1 << shft)) {
+                if(m != n) {
+                    n += sprintf(&reg_buf[n], ", ");
+                }
+                n += sprintf(&reg_buf[n], "r%d", shft);
+            }
+            shft++;
+        }
+        sprintf(&reg_buf[n], "}\n");
+        cl_printf(reg_buf);
         return 1;
     }
     dump_hex(word);
@@ -223,6 +247,14 @@ void test_bl() {
     test_print_asm(0xEB000005, "bl [r15, #0x14]\n", 1);
 }
 
+void test_stmdb() {
+    test_print_asm(0xE92D0002, "stmdb r13!, {r1}\n", 1);
+}
+
+void test_stmdb2() {
+    test_print_asm(0xE92D4008, "stmdb r13!, {r3, r14}\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -245,6 +277,8 @@ void unit_tests() {
     test_bge();
     test_mov_no_immediat2();
     test_bl();
+    test_stmdb();
+    test_stmdb2();
 }
 
 int main(int argc, char *argv[]) {
