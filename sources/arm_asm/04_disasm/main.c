@@ -58,7 +58,7 @@ int print_asm(int word) {
         if(is_mov_i(word)) {
             sprintf(buf, "mov r%d, #0x%X\n", rn, (word & 0xfff));
         } else {
-            int rm = word & 0B111;
+            int rm = word & 0B1111;
             sprintf(buf, "mov r%d, r%d\n", rn, rm);
         }
         cl_printf(buf);
@@ -164,6 +164,10 @@ void test_mov_no_immediate() {
     test_print_asm(0xE1A03001, "mov r3, r1\n", 1);
 }
 
+void test_mov_no_immediat2() {
+    test_print_asm(0xE1A0f00E, "mov r15, r14\n", 1);
+}
+
 void test_b_positive() {
     test_print_asm(0xEA000018, "b [r15, #0x60]\n", 1);
 }
@@ -244,6 +248,7 @@ void unit_tests() {
     test_cmp2();
     test_bne2();
     test_bge();
+    test_mov_no_immediat2();
 }
 
 int main(int argc, char *argv[]) {
