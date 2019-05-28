@@ -107,7 +107,9 @@ int print_asm(int word) {
         return 1;
     }
     if(is_str(word)) {
-        sprintf(buf, "str r1, [r0]\n");
+        int rn = word >> 16 & 0xf;
+        int rd = word >> 12 & 0xf;
+        sprintf(buf, "str r%d, [r%d]\n", rd, rn);
         cl_printf(buf);
         return 1;
     }
@@ -231,6 +233,10 @@ void test_str() {
     test_print_asm(0xe5801000, "str r1, [r0]\n", 1);
 }
 
+void test_str2() {
+    test_print_asm(0xE5812000, "str r2, [r1]\n", 1);  
+}
+
 void test_dump_hex() {
     test_print_asm(0x64646464, "64 64 64 64\n", 0);
 }
@@ -313,6 +319,7 @@ void unit_tests() {
     test_stmdb2();
     test_ldmia();
     test_ldmia2();
+    test_str2();
 }
 
 int main(int argc, char *argv[]) {
