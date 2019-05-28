@@ -43,6 +43,10 @@ static int is_stmdb(int word) {
     return (word & 0xE92D0000) == 0xE92D0000;
 }
 
+static int is_ldmia(int word) {
+    return word == 0xE8BD0002;
+}
+
 void dump_hex(int word) {
     int n = 24;
     int vs[4];
@@ -150,6 +154,10 @@ int print_asm(int word) {
         cl_printf(reg_buf);
         return 1;
     }
+    if(is_ldmia(word)) {
+        cl_printf("ldmia r13!, {r1}\n");
+        return 1;
+    }
     dump_hex(word);
     return 0;
 }
@@ -255,6 +263,10 @@ void test_stmdb2() {
     test_print_asm(0xE92D4008, "stmdb r13!, {r3, r14}\n", 1);
 }
 
+void test_ldmia() {
+    test_print_asm(0xE8BD0002, "ldmia r13!, {r1}\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -279,6 +291,7 @@ void unit_tests() {
     test_bl();
     test_stmdb();
     test_stmdb2();
+    test_ldmia();
 }
 
 int main(int argc, char *argv[]) {
