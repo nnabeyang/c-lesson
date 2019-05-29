@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 static int is_lsr(int word) {
-    return word == 0xE1A03231;
+    return (word & 0xE1A00030)== 0xE1A00030;
 }
 // (b, bl)
 static int is_branch(int word) {
@@ -82,11 +82,6 @@ void dump_hex(int word) {
 
 int print_asm(int word) {
     char buf[80];
-    if(is_lsr(word)) {
-        sprintf(buf, "lsr r3, r1, r2\n");
-        cl_printf(buf);
-        return 1;
-    }
     if(is_branch(word)) {
         const char* base_cmd = (((word >> 24) & 0B1) == 0B1)? "bl" : "b";
         char cmd[16] = {0};
@@ -105,6 +100,14 @@ int print_asm(int word) {
             cl_printf(buf);
             return 1;
         }
+    }
+    if(is_lsr(word)) {
+        int left = word >> 12 & 0xF;
+        int mid = word & 0xF;
+        int right = word >> 8 & 0xF;
+        sprintf(buf, "lsr r%d, r%d, r%d\n", left, mid, right);
+        cl_printf(buf);
+        return 1;
     }
     if(is_mov(word)) {
         int rn = word >> 12 & 0xf;
@@ -217,6 +220,14 @@ void test_mov_no_immediat2() {
     test_print_asm(0xE1A0f00E, "mov r15, r14\n", 1);
 }
 
+void test_lsr() {
+    test_print_asm(0xE1A03231, "lsr r3, r1, r2\n", 1);
+}
+
+void test_lsr2() {
+    test_print_asm(0xE1A02130, "lsr r2, r0, r1\n", 1);
+}
+
 void test_b_positive() {
     test_print_asm(0xEA000018, "b [r15, #0x60]\n", 1);
 }
@@ -307,10 +318,6 @@ void test_ldmia2() {
 
 void test_sub() {
     test_print_asm(0xE2411004, "sub r1, r1, #0x4\n", 1);
-}
-
-void test_lsr() {
-    test_print_asm(0xE1A03231, "lsr r3, r1, r2\n", 1);
 }
 
 void unit_tests() {
