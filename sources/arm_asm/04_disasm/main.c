@@ -9,6 +9,7 @@ static int is_lsr(int word) {
 static int is_branch(int word) {
     return (((word >> 24) & 0xF) & 0B1010) == 0B1010;
 }
+//  0xEBFFFFEF
 // data processing
 static int is_mov(int word) {
     return (word & 0xE1A00000) == 0xE1A00000;
@@ -86,17 +87,6 @@ int print_asm(int word) {
         cl_printf(buf);
         return 1;
     }
-    if(is_mov(word)) {
-        int rn = word >> 12 & 0xf;
-        if(is_mov_i(word)) {
-            sprintf(buf, "mov r%d, #0x%X\n", rn, (word & 0xfff));
-        } else {
-            int rm = word & 0B1111;
-            sprintf(buf, "mov r%d, r%d\n", rn, rm);
-        }
-        cl_printf(buf);
-        return 1;
-    }
     if(is_branch(word)) {
         const char* base_cmd = (((word >> 24) & 0B1) == 0B1)? "bl" : "b";
         char cmd[16] = {0};
@@ -115,6 +105,17 @@ int print_asm(int word) {
             cl_printf(buf);
             return 1;
         }
+    }
+    if(is_mov(word)) {
+        int rn = word >> 12 & 0xf;
+        if(is_mov_i(word)) {
+            sprintf(buf, "mov r%d, #0x%X\n", rn, (word & 0xfff));
+        } else {
+            int rm = word & 0B1111;
+            sprintf(buf, "mov r%d, r%d\n", rn, rm);
+        }
+        cl_printf(buf);
+        return 1;
     }
     if(is_ldr(word)) {
         const char* cmd = (is_byte(word)) ? "ldrb" : "ldr";
@@ -284,6 +285,10 @@ void test_bl() {
     test_print_asm(0xEB000005, "bl [r15, #0x14]\n", 1);
 }
 
+void test_bl2() {
+    test_print_asm(0xEBFFFFEF, "bl [r15, #-0x44]\n", 1);
+}
+
 void test_stmdb() {
     test_print_asm(0xE92D0002, "stmdb r13!, {r1}\n", 1);
 }
@@ -337,6 +342,7 @@ void unit_tests() {
     test_str2();
     test_sub();
     test_lsr();
+    test_bl2();
 }
 
 int main(int argc, char *argv[]) {
