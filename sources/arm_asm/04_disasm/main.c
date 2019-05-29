@@ -2,6 +2,9 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+static int is_lsr(int word) {
+    return word == 0xE1A03231;
+}
 // (b, bl)
 static int is_branch(int word) {
     return (((word >> 24) & 0xF) & 0B1010) == 0B1010;
@@ -78,6 +81,11 @@ void dump_hex(int word) {
 
 int print_asm(int word) {
     char buf[80];
+    if(is_lsr(word)) {
+        sprintf(buf, "lsr r3, r1, r2\n");
+        cl_printf(buf);
+        return 1;
+    }
     if(is_mov(word)) {
         int rn = word >> 12 & 0xf;
         if(is_mov_i(word)) {
@@ -296,6 +304,10 @@ void test_sub() {
     test_print_asm(0xE2411004, "sub r1, r1, #0x4\n", 1);
 }
 
+void test_lsr() {
+    test_print_asm(0xE1A03231, "lsr r3, r1, r2\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -324,6 +336,7 @@ void unit_tests() {
     test_ldmia2();
     test_str2();
     test_sub();
+    test_lsr();
 }
 
 int main(int argc, char *argv[]) {
