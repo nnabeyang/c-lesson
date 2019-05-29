@@ -39,6 +39,9 @@ static int is_and(int word) {
     return (word & 0xE2000000) == 0xE2000000;
 }
 
+static int is_sub(int word) {
+    return (word & 0xE2400000) == 0xE2400000;
+}
 static int is_stmdb(int word) {
     return (word & 0xE92D0000) == 0xE92D0000;
 }
@@ -139,6 +142,14 @@ int print_asm(int word) {
         int offset = word & 0xfff;
         int rn = word >> 16 & 0xf;
         sprintf(buf, "cmp r%d, #0x%X\n", rn, offset);
+        cl_printf(buf);
+        return 1;
+    }
+    if(is_sub(word)) {
+        int rn = word >> 16 & 0xf;
+        int rd = word >> 12 & 0xf;
+        int op2 = word & 0xfff;
+        sprintf(buf, "sub r%d, r%d, #0x%X\n", rd, rn, op2);
         cl_printf(buf);
         return 1;
     }
@@ -281,6 +292,10 @@ void test_ldmia2() {
     test_print_asm(0xE8BD4008, "ldmia r13!, {r3, r14}\n", 1);
 }
 
+void test_sub() {
+    test_print_asm(0xE2411004, "sub r1, r1, #0x4\n", 1);
+}
+
 void unit_tests() {
     test_move1();
     test_move2();
@@ -308,6 +323,7 @@ void unit_tests() {
     test_ldmia();
     test_ldmia2();
     test_str2();
+    test_sub();
 }
 
 int main(int argc, char *argv[]) {
