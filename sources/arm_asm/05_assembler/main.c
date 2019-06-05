@@ -120,9 +120,7 @@ static void test_parse_immediate() {
   assert(v == 0x68);
 }
 static void test_parse_register() {
-  cl_getline_set_str("mov r1, r2");
-  char *buf = (char*)malloc(sizeof(char) * 80);
-  cl_getline(&buf);
+  char *buf = "mov r1, r2";
   int r1, r2;
   buf += 4;
   assert(parse_register(buf, &r1) == 2);
@@ -134,19 +132,13 @@ static void test_parse_register() {
   assert(r2 == 2);
 }
 static void test_asm_one() {
-  cl_getline_set_str("mov  r1, r2");
-  char *buf = (char*)malloc(sizeof(char) * 80);
-  cl_getline(&buf);
-  assert(asm_one(buf) == 0xE1A01002);
+  assert(asm_one("mov  r1, r2") == 0xE1A01002);
 }
 
 static void test_parse_one() {
-  cl_getline_set_str("mov  r1, r2");
-  char *buf = (char*)malloc(sizeof(char) * 80);
-  cl_getline(&buf);
   struct substring out_subs;
   int n;
-  n = parse_one(buf, &out_subs);
+  n = parse_one("mov  r1, r2", &out_subs);
   assert(n == 3);
   assert_strn(out_subs.str, "mov", 3);
 }
