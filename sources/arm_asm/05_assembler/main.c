@@ -90,20 +90,6 @@ int skip_comma(char* str) {
   if(str[0] == ',') return 1;
   else return PARSE_FAIL;
 }
-static void test_parse_register() {
-  cl_getline_set_str("mov r1, r2");
-  char *buf = (char*)malloc(sizeof(char) * 80);
-  cl_getline(&buf);
-  int r1, r2;
-  buf += 4;
-  assert(parse_register(buf, &r1) == 2);
-  assert(r1 == 1);
-  buf += 2;
-  assert(skip_comma(buf) == 1);
-  buf += 1;
-  assert(parse_register(buf, &r2) == 2);
-  assert(r2 == 2);
-}
 int asm_one(char* str) {
   int n;
   struct substring out_subs = {0};
@@ -133,7 +119,20 @@ static void test_parse_immediate() {
   parse_immediate(" #0x68", &v);
   assert(v == 0x68);
 }
-
+static void test_parse_register() {
+  cl_getline_set_str("mov r1, r2");
+  char *buf = (char*)malloc(sizeof(char) * 80);
+  cl_getline(&buf);
+  int r1, r2;
+  buf += 4;
+  assert(parse_register(buf, &r1) == 2);
+  assert(r1 == 1);
+  buf += 2;
+  assert(skip_comma(buf) == 1);
+  buf += 1;
+  assert(parse_register(buf, &r2) == 2);
+  assert(r2 == 2);
+}
 static void test_asm_one() {
   cl_getline_set_str("mov  r1, r2");
   char *buf = (char*)malloc(sizeof(char) * 80);
