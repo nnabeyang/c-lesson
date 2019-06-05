@@ -7,11 +7,21 @@ struct substring {
   char* str;
   int len;
 };
+struct Emitter {
+  int* elems;
+  int pos;
+};
 static int is_space(int ch) {
   return ch == ' ' || ch == '\t'  || ch == '\n';
 }
 static int is_digit(int ch) {
   return ('0' <= ch && ch <= '9');
+}
+static int is_hex(int ch) {
+  return is_digit(ch) || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F');
+}
+static int is_capital(int ch) {
+  return 'A' <= ch && ch <= 'Z';
 }
 static int is_alnum(int ch) {
   return is_digit(ch) || ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
@@ -56,6 +66,26 @@ int parse_register(char* str, int* out_register) {
   }
 }
 
+int parse_immediate(char* str, int* out_value) {
+  int  pos = 0;
+  while(is_space(str[pos])) pos++;
+  if(strncmp(&str[pos], "#0x", 3) != 0) return PARSE_FAIL;
+  pos += 3;
+  int v = 0;
+  int c = str[pos];
+  while(is_hex(c)) {
+    if(is_digit(c)) {
+      v = v * 16 + c - '0';
+    } else if(is_capital(c)) {
+      v = v * 16 + c - 'A' + 10;
+    } else {
+      v = v * 16 + c - 'a' + 10;
+    }
+    c = str[++pos];
+  }
+  *out_value = v;
+  return pos;
+}
 int skip_comma(char* str) {
   if(str[0] == ',') return 1;
   else return PARSE_FAIL;
@@ -92,6 +122,18 @@ int asm_one(char* str) {
   return 0xE1A00000 + (r1 << 12) + r2;  
 }
 
+static int array[MAX_WORDS];
+
+void emit_word(struct Emitter* emitter, int oneword) {
+  array[emitter->pos++] = oneword;
+}
+
+static void test_parse_immediate() {
+  int v;
+  parse_immediate(" #0x68", &v);
+  assert(v == 0x68);
+}
+
 static void test_asm_one() {
   cl_getline_set_str("mov  r1, r2");
   char *buf = (char*)malloc(sizeof(char) * 80);
@@ -122,4 +164,5 @@ static void test_getline() {
 int main() {
   test_getline();
   test_parse_one();
+  test_parse_immediate();
 }
