@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <string.h>
 #include "common.h"
-#include <stdio.h>
 #include <stdlib.h>
 struct substring {
   char* str;
@@ -54,7 +53,7 @@ int parse_register(char* str, int* out_register) {
   while(is_space(str[pos])) pos++;
   if(str[pos] == 'r') {
     int v = 0;
-    int c = str[pos];
+    int c = str[++pos];
     do {
       v = v * 10 + c - '0';
       c = str[++pos];
@@ -90,7 +89,7 @@ int skip_comma(char* str) {
   if(str[0] == ',') return 1;
   else return PARSE_FAIL;
 }
-int asm_one(char* str) {
+int asm_one(char* str, int* out_word) {
   int n;
   struct substring out_subs = {0};
   int r1, r2;
@@ -102,10 +101,12 @@ int asm_one(char* str) {
   str += n;
   n = skip_comma(str);
   if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
   n = parse_register(str, &r2);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   if(strncmp(out_subs.str, "mov", 3) != 0) return PARSE_FAIL;
-  return 0xE1A00000 + (r1 << 12) + r2;  
+  *out_word = 0xE1A00000 + (r1 << 12) + r2;
+  return 1;
 }
 
 static int array[MAX_WORDS];
@@ -113,7 +114,11 @@ static int array[MAX_WORDS];
 void emit_word(struct Emitter* emitter, int oneword) {
   array[emitter->pos++] = oneword;
 }
-
+void print_words(struct Emitter* emitter) {
+  for(int i = 0; i < emitter->pos; i++) {
+    printf("0x%X\n", array[i]);
+  }
+}
 static void test_parse_immediate() {
   int v;
   parse_immediate(" #0x68", &v);
@@ -132,7 +137,9 @@ static void test_parse_register() {
   assert(r2 == 2);
 }
 static void test_asm_one() {
-  assert(asm_one("mov  r1, r2") == 0xE1A01002);
+  int out_word;
+  assert(asm_one("mov r1, r2\n", &out_word) != PARSE_FAIL);
+  assert(out_word == 0xE1A01002);
 }
 
 static void test_parse_one() {
@@ -152,8 +159,31 @@ static void test_getline() {
     assert(strcmp(buf, "mov r1, #0x68") == 0);  
 }
 
-int main() {
+void unit_tests() {
   test_getline();
   test_parse_one();
   test_parse_immediate();
+  test_asm_one();
+}
+
+int main(int argc, char* argv[]) {
+  if(argc == 1) {
+    unit_tests();
+  } else {
+    FILE* fp;
+    if((fp = fopen(argv[1], "r")) == NULL) {
+      return 1;
+    }
+    cl_getline_set_fp(fp);
+    char* out_char = malloc(sizeof(char) * 1024);
+    struct Emitter emitter = {0};
+    emitter.elems = array;
+    while(cl_getline(&out_char) != -1) {
+      int word;
+      if(asm_one(out_char, &word) == PARSE_FAIL) return PARSE_FAIL;
+      emit_word(&emitter, word);
+    }
+    print_words(&emitter);
+  }
+  return 0;
 }

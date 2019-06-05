@@ -1,8 +1,10 @@
+#include <stdio.h>
 int cl_getline(char **out_buf);
 void cl_getline_set_str(char* str);
+void cl_getline_set_fp(FILE* input_fp);
 struct substring;
 struct Emitter;
-int asm_one(char* str);
+int asm_one(char* str, int* out_word);
 int parse_one(char* str, struct substring* out_subs);
 int parse_register(char* str, int* out_register);
 int skip_comma(char* str);
