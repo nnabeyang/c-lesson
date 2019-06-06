@@ -25,6 +25,10 @@ static int is_capital(int ch) {
 static int is_alnum(int ch) {
   return is_digit(ch) || ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
 }
+static int is_register(int ch) {
+  return ch == 'r';
+}
+
 int parse_one(char* str, struct substring* out_subs) {
   int pos = 0;
   if(str[pos] == '\0') return 0;
@@ -92,7 +96,7 @@ int skip_comma(char* str) {
 int asm_one(char* str, int* out_word) {
   int n;
   struct substring out_subs = {0};
-  int r1, r2;
+  int r1, rm;
   n = parse_one(str, &out_subs);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
@@ -102,10 +106,16 @@ int asm_one(char* str, int* out_word) {
   n = skip_comma(str);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
-  n = parse_register(str, &r2);
+  while(is_space(str[0])) str++;
+  int is_immediate = !is_register(str[0]);
+  if(!is_immediate) {
+    n = parse_register(str, &rm);
+  } else {
+    n = parse_immediate(str, &rm);
+  }
   if(n == PARSE_FAIL) return PARSE_FAIL;
   if(strncmp(out_subs.str, "mov", 3) != 0) return PARSE_FAIL;
-  *out_word = 0xE1A00000 + (r1 << 12) + r2;
+  *out_word = 0xE1A00000 + (r1 << 12) + rm + (is_immediate << 25);
   return 1;
 }
 
@@ -151,6 +161,8 @@ static void test_asm_one() {
   int out_word;
   assert(asm_one("mov r1, r2\n", &out_word) != PARSE_FAIL);
   assert(out_word == 0xE1A01002);
+  assert(asm_one("mov r2, #0x68\n", &out_word) != PARSE_FAIL);
+  assert(out_word == 0xE3A02068);
 }
 
 static void test_parse_one() {
