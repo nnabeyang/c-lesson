@@ -119,6 +119,17 @@ void print_words(struct Emitter* emitter) {
     printf("0x%X\n", array[i]);
   }
 }
+void save_words(struct Emitter* emitter) {
+  FILE* fp;
+  if ((fp = fopen("./a.bin", "wb+")) == NULL) {
+        return ;
+  }
+  for(int i = 0; i < emitter->pos; i++) {
+    fwrite(&array[i], sizeof(array[i]), 1, fp);
+  }
+  fclose(fp);
+}
+
 static void test_parse_immediate() {
   int v;
   parse_immediate(" #0x68", &v);
@@ -183,6 +194,7 @@ int main(int argc, char* argv[]) {
       if(asm_one(out_char, &word) == PARSE_FAIL) return PARSE_FAIL;
       emit_word(&emitter, word);
     }
+    save_words(&emitter);
     print_words(&emitter);
   }
   return 0;
