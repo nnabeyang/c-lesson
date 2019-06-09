@@ -94,11 +94,45 @@ int parse_immediate(char* str, int* out_value) {
   int  pos = 0;
   while(is_space(str[pos])) pos++;
   if(strncmp(&str[pos], "#0x", 3) != 0) return PARSE_FAIL;
-  return parse_hex(&str[++pos], out_value);
+  return parse_hex(&str[++pos], out_value) + 1;
 }
 int skip_comma(char* str) {
   if(str[0] == ',') return 1;
   else return PARSE_FAIL;
+}
+
+int skip_symbol(char* str, int symbol) {
+  int pos = 0;
+  while(is_space(str[pos])) pos++;
+  if(str[pos] == symbol) return pos + 1;
+  else return PARSE_FAIL;
+}
+
+int asm_ldr(char* str, int* out_word) {
+  int n, rd, rn, offset;
+  n = parse_register(str, &rn);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, '[');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = parse_register(str, &rd);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  while(is_space(str[0])) str++;
+  n = parse_immediate(str, &offset);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ']');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  *out_word = 0xE5900000 + (rd << 16) + (rn << 12) + offset;
+  return 1;
 }
 
 int asm_raw(char* str, int* out_word) {
@@ -142,6 +176,9 @@ int asm_one(char* str, int* out_word) {
   if(strncmp(out_subs.str, ".raw", 4) == 0) {
     return asm_raw(str, out_word);
   }
+  if(strncmp(out_subs.str, "ldr", 3) == 0) {
+    return asm_ldr(str, out_word);
+  }
   return PARSE_FAIL;
 }
 
@@ -164,6 +201,12 @@ void save_words(struct Emitter* emitter) {
     fwrite(&array[i], sizeof(array[i]), 1, fp);
   }
   fclose(fp);
+}
+
+static void test_ldr() {
+  int out_word;
+  assert(asm_one("ldr r1, [r15, #0x30]\n", &out_word) != PARSE_FAIL);
+  assert(out_word == 0xE59F1030);
 }
 
 static void test_raw_hex() {
@@ -220,6 +263,7 @@ void unit_tests() {
   test_parse_immediate();
   test_asm_one();
   test_raw_hex();
+  test_ldr();
 }
 
 int main(int argc, char* argv[]) {
