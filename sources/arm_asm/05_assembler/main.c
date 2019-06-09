@@ -43,8 +43,8 @@ int parse_one(char* str, struct substring* out_subs) {
     out_subs->len = pos - 1;
     return pos - 1;
   }
-  if(is_alnum(str[pos])) {
-    while(is_alnum(str[pos]) || str[pos] == '_') pos++;    
+  if(str[pos] == '.' || is_alnum(str[pos])) {
+    while(str[pos] == '.' || is_alnum(str[pos]) || str[pos] == '_') pos++;
     out_subs->str = str;
     out_subs->len = pos;
     return pos;
@@ -69,11 +69,11 @@ int parse_register(char* str, int* out_register) {
   }
 }
 
-int parse_immediate(char* str, int* out_value) {
+int parse_hex(char* str, int* out_value) {
   int  pos = 0;
   while(is_space(str[pos])) pos++;
-  if(strncmp(&str[pos], "#0x", 3) != 0) return PARSE_FAIL;
-  pos += 3;
+  if(strncmp(&str[pos], "0x", 2) != 0) return PARSE_FAIL;
+  pos += 2;
   int v = 0;
   int c = str[pos];
   while(is_hex(c)) {
@@ -89,17 +89,28 @@ int parse_immediate(char* str, int* out_value) {
   *out_value = v;
   return pos;
 }
+
+int parse_immediate(char* str, int* out_value) {
+  int  pos = 0;
+  while(is_space(str[pos])) pos++;
+  if(strncmp(&str[pos], "#0x", 3) != 0) return PARSE_FAIL;
+  return parse_hex(&str[++pos], out_value);
+}
 int skip_comma(char* str) {
   if(str[0] == ',') return 1;
   else return PARSE_FAIL;
 }
-int asm_one(char* str, int* out_word) {
-  int n;
-  struct substring out_subs = {0};
-  int r1, rm;
-  n = parse_one(str, &out_subs);
+
+int asm_raw(char* str, int* out_word) {
+  int n, v;
+  n = parse_hex(str, &v);
   if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
+  *out_word = v;
+  return 1;
+}
+
+int asm_mov(char* str, int* out_word) {
+  int n, r1, rm;
   n = parse_register(str, &r1);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
@@ -114,9 +125,24 @@ int asm_one(char* str, int* out_word) {
     n = parse_immediate(str, &rm);
   }
   if(n == PARSE_FAIL) return PARSE_FAIL;
-  if(strncmp(out_subs.str, "mov", 3) != 0) return PARSE_FAIL;
   *out_word = 0xE1A00000 + (r1 << 12) + rm + (is_immediate << 25);
   return 1;
+}
+
+int asm_one(char* str, int* out_word) {
+  int n;
+  struct substring out_subs = {0};
+  int r1, rm;
+  n = parse_one(str, &out_subs);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  if(strncmp(out_subs.str, "mov", 3) == 0) {
+    return asm_mov(str, out_word);
+  }
+  if(strncmp(out_subs.str, ".raw", 4) == 0) {
+    return asm_raw(str, out_word);
+  }
+  return PARSE_FAIL;
 }
 
 static int array[MAX_WORDS];
@@ -138,6 +164,12 @@ void save_words(struct Emitter* emitter) {
     fwrite(&array[i], sizeof(array[i]), 1, fp);
   }
   fclose(fp);
+}
+
+static void test_raw_hex() {
+  int out_word;
+  assert(asm_one(".raw 0x12345678\n", &out_word) != PARSE_FAIL);
+  assert(out_word == 0x12345678);
 }
 
 static void test_parse_immediate() {
@@ -187,6 +219,7 @@ void unit_tests() {
   test_parse_one();
   test_parse_immediate();
   test_asm_one();
+  test_raw_hex();
 }
 
 int main(int argc, char* argv[]) {
