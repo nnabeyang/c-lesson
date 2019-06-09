@@ -96,10 +96,6 @@ int parse_immediate(char* str, int* out_value) {
   if(strncmp(&str[pos], "#0x", 3) != 0) return PARSE_FAIL;
   return parse_hex(&str[++pos], out_value) + 1;
 }
-int skip_comma(char* str) {
-  if(str[0] == ',') return 1;
-  else return PARSE_FAIL;
-}
 
 int skip_symbol(char* str, int symbol) {
   int pos = 0;
@@ -148,7 +144,7 @@ int asm_mov(char* str, int* out_word) {
   n = parse_register(str, &r1);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
-  n = skip_comma(str);
+  n = skip_symbol(str, ',');
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
   while(is_space(str[0])) str++;
@@ -227,7 +223,7 @@ static void test_parse_register() {
   assert(parse_register(buf, &r1) == 2);
   assert(r1 == 1);
   buf += 2;
-  assert(skip_comma(buf) == 1);
+  assert(skip_symbol(buf, ',') == 1);
   buf += 1;
   assert(parse_register(buf, &r2) == 2);
   assert(r2 == 2);
