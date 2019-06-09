@@ -109,6 +109,27 @@ int skip_symbol(char* str, int symbol) {
   else return PARSE_FAIL;
 }
 
+int asm_str(char* str, int* out_word) {
+  int n, rd, rn;
+  n = parse_register(str, &rn);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, '[');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = parse_register(str, &rd);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ']');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+
+  *out_word = 0xE5800000  + (rd << 16) + (rn << 12);
+  return 1;
+}
+
 int asm_ldr(char* str, int* out_word) {
   int n, rd, rn;
   int offset = 0;
@@ -184,6 +205,9 @@ int asm_one(char* str, int* out_word) {
   if(strncmp(out_subs.str, "ldr", 3) == 0) {
     return asm_ldr(str, out_word);
   }
+  if(strncmp(out_subs.str, "str", 3) == 0) {
+    return asm_str(str, out_word);
+  }
   return PARSE_FAIL;
 }
 
@@ -208,6 +232,11 @@ void save_words(struct Emitter* emitter) {
   fclose(fp);
 }
 
+static void test_str() {
+  int out_word;
+  assert(asm_one("str r0, [r1]\n", &out_word) != PARSE_FAIL);
+  assert(out_word == 0xE5810000);
+}
 static void test_ldr() {
   int out_word;
   assert(asm_one("ldr r1, [r15, #0x30]\n", &out_word) != PARSE_FAIL);
@@ -281,6 +310,7 @@ void unit_tests() {
   test_raw_hex();
   test_ldr();
   test_parse_immediate_negative();
+  test_str();
 }
 
 int main(int argc, char* argv[]) {
