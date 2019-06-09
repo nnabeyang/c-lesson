@@ -110,7 +110,8 @@ int skip_symbol(char* str, int symbol) {
 }
 
 int asm_ldr(char* str, int* out_word) {
-  int n, rd, rn, offset;
+  int n, rd, rn;
+  int offset = 0;
   n = parse_register(str, &rn);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
@@ -123,15 +124,18 @@ int asm_ldr(char* str, int* out_word) {
   n = parse_register(str, &rd);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
+  n = skip_symbol(str, ']');
+  if(n == PARSE_FAIL) {
   n = skip_symbol(str, ',');
   if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  while(is_space(str[0])) str++;
-  n = parse_immediate(str, &offset);
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  n = skip_symbol(str, ']');
-  if(n == PARSE_FAIL) return PARSE_FAIL;
+    str += n;
+    while(is_space(str[0])) str++;
+    n = parse_immediate(str, &offset);
+    if(n == PARSE_FAIL) return PARSE_FAIL;
+    str += n;
+    n = skip_symbol(str, ']');
+    if(n == PARSE_FAIL) return PARSE_FAIL;
+  }
   *out_word = 0xE5100000 + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
   return 1;
 }
@@ -210,6 +214,8 @@ static void test_ldr() {
   assert(out_word == 0xE59F1030);
   assert(asm_one("ldr r1, [r15, #-0x30]\n", &out_word) != PARSE_FAIL);
   assert(out_word == 0xE51F1030);
+  assert(asm_one("ldr r1, [r15]\n", &out_word) != PARSE_FAIL);
+  assert(out_word == 0xE59F1000);
 }
 
 static void test_raw_hex() {
