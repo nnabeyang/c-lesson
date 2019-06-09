@@ -72,6 +72,11 @@ int parse_register(char* str, int* out_register) {
 int parse_hex(char* str, int* out_value) {
   int  pos = 0;
   while(is_space(str[pos])) pos++;
+  int is_negative = 0;
+  if(str[pos] == '-') {
+    is_negative = 1;
+    pos++;
+  }
   if(strncmp(&str[pos], "0x", 2) != 0) return PARSE_FAIL;
   pos += 2;
   int v = 0;
@@ -86,14 +91,14 @@ int parse_hex(char* str, int* out_value) {
     }
     c = str[++pos];
   }
-  *out_value = v;
+  *out_value = (is_negative)? -v : v;
   return pos;
 }
 
 int parse_immediate(char* str, int* out_value) {
   int  pos = 0;
   while(is_space(str[pos])) pos++;
-  if(strncmp(&str[pos], "#0x", 3) != 0) return PARSE_FAIL;
+  if(strncmp(&str[pos], "#", 1) != 0) return PARSE_FAIL;
   return parse_hex(&str[++pos], out_value) + 1;
 }
 
@@ -216,6 +221,13 @@ static void test_parse_immediate() {
   parse_immediate(" #0x68", &v);
   assert(v == 0x68);
 }
+
+static void test_parse_immediate_negative() {
+  int v;
+  parse_immediate(" #-0x30", &v);
+  assert(v == -0x30);
+}
+
 static void test_parse_register() {
   char *buf = "mov r1, r2";
   int r1, r2;
@@ -260,6 +272,7 @@ void unit_tests() {
   test_asm_one();
   test_raw_hex();
   test_ldr();
+  test_parse_immediate_negative();
 }
 
 int main(int argc, char* argv[]) {
