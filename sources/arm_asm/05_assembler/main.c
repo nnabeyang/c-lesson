@@ -10,6 +10,67 @@ struct Emitter {
   int* elems;
   int pos;
 };
+struct Node {
+  char* name;
+  int value;
+  struct Node* left;
+  struct Node* right;
+};
+
+struct Node mnemonic_root;
+struct Node label_root;
+
+int mnemonic_id = 1;
+int label_id = 10000;
+
+struct Node* create_node(char* name, int len, int value) {
+  struct Node* node = malloc(sizeof(struct Node));
+  node->name = malloc(sizeof(char) * len);
+  strncpy(node->name, name, len);
+  node->value = value;
+  return node;
+}
+
+int to_mnemonic_symbol_of(struct Node* parent, char* str, int len) {
+  if(parent->name == NULL) {
+      parent->name = malloc(sizeof(char) * len);
+      strncpy(parent->name, str, len);
+      parent->value = mnemonic_id++;
+      return parent->value;
+  }
+  int cmp = strncmp(parent->name, str, len);
+  if(cmp == 0) return parent->value;
+  if(cmp > 0) {
+    if(parent->right == NULL) {
+      parent->right = create_node(str, len, mnemonic_id++);
+      return parent->right->value;
+    }
+    return to_mnemonic_symbol_of(parent->right, str, len);
+  }
+  if(cmp < 0) {
+     if(parent->left == NULL) {
+      parent->left = create_node(str, len, mnemonic_id++);
+      return parent->left->value;
+    }
+    return to_mnemonic_symbol_of(parent->left, str, len);
+  }
+  return -1;
+}
+
+int to_mnemonic_symbol(char* str, int len) {
+  return to_mnemonic_symbol_of(&mnemonic_root, str, len);
+}
+
+
+void reset_symbols() {
+  mnemonic_root.left = NULL;
+  mnemonic_root.right = NULL;
+  label_root.left = NULL;
+  label_root.right = NULL;
+  mnemonic_id = 1;
+  label_id = 10000;
+}
+
 static int is_space(int ch) {
   return ch == ' ' || ch == '\t'  || ch == '\n';
 }
@@ -232,6 +293,16 @@ void save_words(struct Emitter* emitter) {
   fclose(fp);
 }
 
+static void test_to_mnemonic_symbol() {
+  assert(to_mnemonic_symbol("mov", 3) == 1);
+  assert(to_mnemonic_symbol("str", 3) == 2);
+  assert(to_mnemonic_symbol(".raw", 4) == 3);
+  assert(to_mnemonic_symbol("str", 3) == 2);
+  assert(to_mnemonic_symbol("mov", 3) == 1);
+  assert(to_mnemonic_symbol(".raw", 4) == 3);
+  reset_symbols();
+}
+
 static void test_str() {
   int out_word;
   assert(asm_one("str r0, [r1]\n", &out_word) != PARSE_FAIL);
@@ -311,6 +382,7 @@ void unit_tests() {
   test_ldr();
   test_parse_immediate_negative();
   test_str();
+  test_to_mnemonic_symbol();
 }
 
 int main(int argc, char* argv[]) {
