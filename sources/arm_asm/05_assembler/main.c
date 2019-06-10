@@ -31,36 +31,39 @@ struct Node* create_node(char* name, int len, int value) {
   return node;
 }
 
-int to_mnemonic_symbol_of(struct Node* parent, char* str, int len) {
+int to_mnemonic_symbol_of(struct Node* parent, char* str, int len, int* id) {
   if(parent->name == NULL) {
       parent->name = malloc(sizeof(char) * len);
       strncpy(parent->name, str, len);
-      parent->value = mnemonic_id++;
+      parent->value = (*id)++;
       return parent->value;
   }
   int cmp = strncmp(parent->name, str, len);
   if(cmp == 0) return parent->value;
   if(cmp > 0) {
     if(parent->right == NULL) {
-      parent->right = create_node(str, len, mnemonic_id++);
+      parent->right = create_node(str, len, (*id)++);
       return parent->right->value;
     }
-    return to_mnemonic_symbol_of(parent->right, str, len);
+    return to_mnemonic_symbol_of(parent->right, str, len, id);
   }
   if(cmp < 0) {
      if(parent->left == NULL) {
-      parent->left = create_node(str, len, mnemonic_id++);
+      parent->left = create_node(str, len, (*id)++);
       return parent->left->value;
     }
-    return to_mnemonic_symbol_of(parent->left, str, len);
+    return to_mnemonic_symbol_of(parent->left, str, len, id);
   }
   return -1;
 }
 
 int to_mnemonic_symbol(char* str, int len) {
-  return to_mnemonic_symbol_of(&mnemonic_root, str, len);
+  return to_mnemonic_symbol_of(&mnemonic_root, str, len, &mnemonic_id);
 }
 
+int to_label_symbol(char* str, int len) {
+  return to_mnemonic_symbol_of(&label_root, str, len, &label_id);
+}
 
 void reset_symbols() {
   mnemonic_root.left = NULL;
@@ -293,6 +296,16 @@ void save_words(struct Emitter* emitter) {
   fclose(fp);
 }
 
+static void test_to_label_symbol() {
+  assert(to_label_symbol("loop", 4) == 10000);
+  assert(to_label_symbol("print", 5) == 10001);
+  assert(to_label_symbol("end", 3) == 10002);
+  assert(to_label_symbol("print", 5) == 10001);
+  assert(to_label_symbol("loop", 4) == 10000);
+  assert(to_label_symbol("end", 3) == 10002);
+  reset_symbols();
+}
+
 static void test_to_mnemonic_symbol() {
   assert(to_mnemonic_symbol("mov", 3) == 1);
   assert(to_mnemonic_symbol("str", 3) == 2);
@@ -383,6 +396,7 @@ void unit_tests() {
   test_parse_immediate_negative();
   test_str();
   test_to_mnemonic_symbol();
+  test_to_label_symbol();
 }
 
 int main(int argc, char* argv[]) {
