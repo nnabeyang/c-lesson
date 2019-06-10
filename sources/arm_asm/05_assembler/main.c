@@ -26,6 +26,8 @@ int label_id = 10000;
 struct Node* create_node(char* name, int len, int value) {
   struct Node* node = malloc(sizeof(struct Node));
   node->name = malloc(sizeof(char) * len);
+  node->left = NULL;
+  node->right = NULL;
   strncpy(node->name, name, len);
   node->value = value;
   return node;
@@ -66,12 +68,21 @@ int to_label_symbol(char* str, int len) {
 }
 
 void reset_symbols() {
+  mnemonic_root.name = NULL;
   mnemonic_root.left = NULL;
   mnemonic_root.right = NULL;
+  label_root.name = NULL;
   label_root.left = NULL;
   label_root.right = NULL;
   mnemonic_id = 1;
   label_id = 10000;
+}
+
+void setup_symbols() {
+  to_mnemonic_symbol("mov", 3);
+  to_mnemonic_symbol(".raw", 4);
+  to_mnemonic_symbol("ldr", 3);
+  to_mnemonic_symbol("str", 3);
 }
 
 static int is_space(int ch) {
@@ -260,19 +271,19 @@ int asm_one(char* str, int* out_word) {
   n = parse_one(str, &out_subs);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
-  if(strncmp(out_subs.str, "mov", 3) == 0) {
+  int symbol = to_mnemonic_symbol(out_subs.str, out_subs.len);
+  switch(symbol) {
+  case 1:
     return asm_mov(str, out_word);
-  }
-  if(strncmp(out_subs.str, ".raw", 4) == 0) {
+  case 2:
     return asm_raw(str, out_word);
-  }
-  if(strncmp(out_subs.str, "ldr", 3) == 0) {
+  case 3:
     return asm_ldr(str, out_word);
-  }
-  if(strncmp(out_subs.str, "str", 3) == 0) {
+  case 4:
     return asm_str(str, out_word);
+  default:
+    return PARSE_FAIL;
   }
-  return PARSE_FAIL;
 }
 
 static int array[MAX_WORDS];
@@ -308,11 +319,9 @@ static void test_to_label_symbol() {
 
 static void test_to_mnemonic_symbol() {
   assert(to_mnemonic_symbol("mov", 3) == 1);
-  assert(to_mnemonic_symbol("str", 3) == 2);
-  assert(to_mnemonic_symbol(".raw", 4) == 3);
-  assert(to_mnemonic_symbol("str", 3) == 2);
-  assert(to_mnemonic_symbol("mov", 3) == 1);
-  assert(to_mnemonic_symbol(".raw", 4) == 3);
+  assert(to_mnemonic_symbol("str", 3) == 4);
+  assert(to_mnemonic_symbol(".raw", 4) == 2);
+    assert(to_mnemonic_symbol("ldr", 3) == 3);
   reset_symbols();
 }
 
@@ -400,6 +409,7 @@ void unit_tests() {
 }
 
 int main(int argc, char* argv[]) {
+  setup_symbols();
   if(argc == 1) {
     unit_tests();
   } else {
