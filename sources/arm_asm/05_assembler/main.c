@@ -17,6 +17,43 @@ struct Node {
   struct Node* right;
 };
 
+struct KeyValue {
+  int key;
+  int value;
+  struct KeyValue *next;
+};
+
+#define DICT_SIZE  1024
+static struct KeyValue dict_array[DICT_SIZE];
+static int dict_pos = 0;
+
+
+void dict_put(const int key, int value) {
+  for(int i = 0; i < dict_pos; i++) {
+    struct KeyValue* key_value = &dict_array[i];
+    if(key == key_value->key) {
+      key_value->value = value;
+      return;
+    }
+  }
+  struct KeyValue* key_value = &dict_array[dict_pos++];
+  key_value->key = key;
+  key_value->value = value;
+}
+int dict_get(const int key, int* out_value) {
+  for(int i = 0; i < dict_pos; i++) {
+    struct KeyValue key_value = dict_array[i];
+    if(key == key_value.key) {
+      *out_value = key_value.value;
+      return 1;
+    }
+  }
+  return 0;
+}
+void reset_dict() {
+  dict_pos = 0;
+}
+
 struct Node mnemonic_root;
 struct Node label_root;
 
@@ -311,6 +348,20 @@ void save_words(struct Emitter* emitter) {
   fclose(fp);
 }
 
+static void test_dict() {
+  reset_dict();
+  int expect1 = 0x12345678;
+  int expect2 = 0x2468abcd;
+  dict_put(1, expect1);
+  dict_put(2, expect2);
+  int out_val;
+  assert(dict_get(3, &out_val) == 0);
+  assert(dict_get(2, &out_val) == 1);
+  assert(out_val == expect2);
+  assert(dict_get(1, &out_val) == 1);
+  assert(out_val == expect1);
+  reset_dict();
+}
 static void test_label() {
   int out_word;
   reset_symbols();
@@ -433,6 +484,7 @@ void unit_tests() {
   test_to_label_symbol();
   test_parse_one_label();
   test_label();
+  test_dict();
 }
 
 int main(int argc, char* argv[]) {

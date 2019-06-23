@@ -16,3 +16,7 @@ void assert_strn(const char*  actual, const char* expect, int n);
 
 struct Node;
 int to_mnemonic_symbol(char* str, int len);
+
+void dict_put(const int key, int value);
+int dict_get(const int key, int* out_value);
+void reset_dict();
