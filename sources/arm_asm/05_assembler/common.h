@@ -11,6 +11,7 @@ int skip_comma(char* str);
 void emit_word(struct Emitter* emitter, int oneword);
 void assert_strn(const char*  actual, const char* expect, int n);
 #define PARSE_FAIL (-100)
+#define PARSE_LABEL (-101)
 #define MAX_WORDS 100000
 
 struct Node;

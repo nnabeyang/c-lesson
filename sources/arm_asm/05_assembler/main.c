@@ -271,6 +271,10 @@ int asm_one(char* str, int* out_word) {
   n = parse_one(str, &out_subs);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
+  if(str[0] == ':') {
+    to_label_symbol(out_subs.str, out_subs.len);
+    return PARSE_LABEL;
+  }
   int symbol = to_mnemonic_symbol(out_subs.str, out_subs.len);
   switch(symbol) {
   case 1:
@@ -305,6 +309,18 @@ void save_words(struct Emitter* emitter) {
     fwrite(&array[i], sizeof(array[i]), 1, fp);
   }
   fclose(fp);
+}
+
+static void test_label() {
+  int out_word;
+  reset_symbols();
+  assert(asm_one("loop:\n", &out_word) == PARSE_LABEL);
+  assert(asm_one("sum:\n", &out_word) == PARSE_LABEL);
+  assert(asm_one("mov:\n", &out_word) == PARSE_LABEL);
+  assert(to_label_symbol("loop", 4) == 10000);
+  assert(to_label_symbol("sum", 3) == 10001);
+    assert(to_label_symbol("mov", 3) == 10002);
+  reset_symbols();
 }
 
 static void test_to_label_symbol() {
@@ -385,6 +401,15 @@ static void test_parse_one() {
   assert(n == 3);
   assert_strn(out_subs.str, "mov", 3);
 }
+
+static void test_parse_one_label() {
+  struct substring out_subs;
+  int n;
+  n = parse_one("loop: \n", &out_subs);
+  assert(n == 4);
+  assert_strn(out_subs.str, "loop", 4);
+}
+
 static void test_getline() {
     cl_getline_set_str("mov r1, r2\n"
                             "mov r1, #0x68");
@@ -406,6 +431,8 @@ void unit_tests() {
   test_str();
   test_to_mnemonic_symbol();
   test_to_label_symbol();
+  test_parse_one_label();
+  test_label();
 }
 
 int main(int argc, char* argv[]) {
