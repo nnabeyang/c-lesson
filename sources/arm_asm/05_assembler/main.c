@@ -301,7 +301,7 @@ int asm_mov(char* str, int* out_word) {
   return 1;
 }
 
-int asm_one(char* str, int* out_word) {
+int asm_one(char* str, int* out_word, int addr) {
   int n;
   struct substring out_subs = {0};
   int r1, rm;
@@ -309,7 +309,8 @@ int asm_one(char* str, int* out_word) {
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
   if(str[0] == ':') {
-    to_label_symbol(out_subs.str, out_subs.len);
+    int id = to_label_symbol(out_subs.str, out_subs.len);
+    dict_put(id, addr);
     return PARSE_LABEL;
   }
   int symbol = to_mnemonic_symbol(out_subs.str, out_subs.len);
@@ -365,12 +366,21 @@ static void test_dict() {
 static void test_label() {
   int out_word;
   reset_symbols();
-  assert(asm_one("loop:\n", &out_word) == PARSE_LABEL);
-  assert(asm_one("sum:\n", &out_word) == PARSE_LABEL);
-  assert(asm_one("mov:\n", &out_word) == PARSE_LABEL);
+  reset_dict();
+  int addr = 0;
+  assert(asm_one("loop:\n", &out_word, ++addr) == PARSE_LABEL);
+  assert(asm_one("sum:\n", &out_word, ++addr) == PARSE_LABEL);
+  assert(asm_one("mov:\n", &out_word, ++addr) == PARSE_LABEL);
   assert(to_label_symbol("loop", 4) == 10000);
+  int out;
+  assert(dict_get(10000, &out) == 1);
+  assert(out == 1);
   assert(to_label_symbol("sum", 3) == 10001);
-    assert(to_label_symbol("mov", 3) == 10002);
+  assert(dict_get(10001, &out) == 1);
+  assert(out == 2);
+  assert(to_label_symbol("mov", 3) == 10002);
+  assert(dict_get(10002, &out) == 1);
+  assert(out == 3);
   reset_symbols();
 }
 
@@ -394,22 +404,22 @@ static void test_to_mnemonic_symbol() {
 
 static void test_str() {
   int out_word;
-  assert(asm_one("str r0, [r1]\n", &out_word) != PARSE_FAIL);
+  assert(asm_one("str r0, [r1]\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0xE5810000);
 }
 static void test_ldr() {
   int out_word;
-  assert(asm_one("ldr r1, [r15, #0x30]\n", &out_word) != PARSE_FAIL);
+  assert(asm_one("ldr r1, [r15, #0x30]\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0xE59F1030);
-  assert(asm_one("ldr r1, [r15, #-0x30]\n", &out_word) != PARSE_FAIL);
+  assert(asm_one("ldr r1, [r15, #-0x30]\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0xE51F1030);
-  assert(asm_one("ldr r1, [r15]\n", &out_word) != PARSE_FAIL);
+  assert(asm_one("ldr r1, [r15]\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0xE59F1000);
 }
 
 static void test_raw_hex() {
   int out_word;
-  assert(asm_one(".raw 0x12345678\n", &out_word) != PARSE_FAIL);
+  assert(asm_one(".raw 0x12345678\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0x12345678);
 }
 
@@ -439,9 +449,9 @@ static void test_parse_register() {
 }
 static void test_asm_one() {
   int out_word;
-  assert(asm_one("mov r1, r2\n", &out_word) != PARSE_FAIL);
+  assert(asm_one("mov r1, r2\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0xE1A01002);
-  assert(asm_one("mov r2, #0x68\n", &out_word) != PARSE_FAIL);
+  assert(asm_one("mov r2, #0x68\n", &out_word, 0) != PARSE_FAIL);
   assert(out_word == 0xE3A02068);
 }
 
@@ -500,9 +510,10 @@ int main(int argc, char* argv[]) {
     char* out_char = malloc(sizeof(char) * 1024);
     struct Emitter emitter = {0};
     emitter.elems = array;
+    int addr = 0;
     while(cl_getline(&out_char) != -1) {
       int word;
-      if(asm_one(out_char, &word) == PARSE_FAIL) return PARSE_FAIL;
+      if(asm_one(out_char, &word, ++addr) == PARSE_FAIL) return PARSE_FAIL;
       emit_word(&emitter, word);
     }
     save_words(&emitter);
