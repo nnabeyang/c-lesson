@@ -4,7 +4,7 @@ void cl_getline_set_str(char* str);
 void cl_getline_set_fp(FILE* input_fp);
 struct substring;
 struct Emitter;
-int asm_one(char* str, int* out_word);
+int asm_one(char* str, int* out_word, int addr);
 int parse_one(char* str, struct substring* out_subs);
 int parse_register(char* str, int* out_register);
 int skip_comma(char* str);
@@ -20,3 +20,6 @@ int to_mnemonic_symbol(char* str, int len);
 void dict_put(const int key, int value);
 int dict_get(const int key, int* out_value);
 void reset_dict();
+
+void symbol_add(int pos, int label_id);
+void resolve_symbols();

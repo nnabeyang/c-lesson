@@ -2,6 +2,16 @@
 #include <string.h>
 #include "common.h"
 #include <stdlib.h>
+struct SymbolNode {
+  int pos;
+  int label_id;
+  struct SymbolNode* next;
+};
+static struct SymbolNode symbolRoot;
+static struct SymbolNode* symbols = &symbolRoot;
+void reset_unresolve_list() {
+  symbols = &symbolRoot;
+}
 struct substring {
   char* str;
   int len;
@@ -57,7 +67,7 @@ void reset_dict() {
 struct Node mnemonic_root;
 struct Node label_root;
 
-int mnemonic_id = 1;
+int mnemonic_id = 0;
 int label_id = 10000;
 
 struct Node* create_node(char* name, int len, int value) {
@@ -111,11 +121,12 @@ void reset_symbols() {
   label_root.name = NULL;
   label_root.left = NULL;
   label_root.right = NULL;
-  mnemonic_id = 1;
+  mnemonic_id = 0;
   label_id = 10000;
 }
 
 void setup_symbols() {
+  to_mnemonic_symbol("b", 1);
   to_mnemonic_symbol("mov", 3);
   to_mnemonic_symbol(".raw", 4);
   to_mnemonic_symbol("ldr", 3);
@@ -301,6 +312,20 @@ int asm_mov(char* str, int* out_word) {
   return 1;
 }
 
+int asm_b(char* str, int* out_word, int addr) {
+  int n;
+  struct substring out_subs = {0};
+  int pos = 0;
+  while(is_space(str[pos])) pos++;
+  str += pos;
+  n = parse_one(str, &out_subs);
+  if(n == PARSE_FAIL) return n;
+  int label_id = to_label_symbol(out_subs.str, out_subs.len);
+  symbol_add(addr, label_id);
+  *out_word = 0xEA000000;
+  return 1;
+}
+
 int asm_one(char* str, int* out_word, int addr) {
   int n;
   struct substring out_subs = {0};
@@ -315,6 +340,8 @@ int asm_one(char* str, int* out_word, int addr) {
   }
   int symbol = to_mnemonic_symbol(out_subs.str, out_subs.len);
   switch(symbol) {
+  case 0:
+    return asm_b(str, out_word, addr);
   case 1:
     return asm_mov(str, out_word);
   case 2:
@@ -349,6 +376,51 @@ void save_words(struct Emitter* emitter) {
   fclose(fp);
 }
 
+void symbol_add(int pos, int label_id) {
+  struct SymbolNode* v = malloc(sizeof(struct SymbolNode));
+  v->pos = pos;
+  v->label_id = label_id;
+  v->next = NULL;
+  symbols->next = v;
+  symbols = v;
+}
+
+void resolve_symbols() {
+  struct SymbolNode* p = &symbolRoot;
+  while(p->next != NULL) {
+    p = p->next;
+    int addr;
+    if(dict_get(p->label_id, &addr) == 1) {
+      int r_addr = addr - p->pos - 1;
+      int word = array[p->pos];
+      array[p->pos] = word | (0XFFFFFF + r_addr);
+    }
+  }
+}
+
+static void test_b() {
+  int out_word;
+  reset_symbols();
+  reset_dict();
+  setup_symbols();
+  int addr = 0;
+  struct Emitter emitter = {0};
+  emitter.elems = array;
+  assert(asm_one("loop:\n", &out_word, 0) == PARSE_LABEL);
+  assert(asm_one("mov r1, r2\n", &out_word, 0) == 1);
+  emit_word(&emitter, out_word);
+  assert(asm_one("b loop\n", &out_word, 1) == 1);
+  emit_word(&emitter, out_word);
+  resolve_symbols();
+  assert(array[1] == 0XEAFFFFFD);
+}
+
+static void test_setup_symbols() {
+  reset_symbols();
+  setup_symbols();
+  int id = to_mnemonic_symbol("b loop", 1);
+  assert(id == 0);
+}
 static void test_dict() {
   reset_dict();
   int expect1 = 0x12345678;
@@ -495,6 +567,8 @@ void unit_tests() {
   test_parse_one_label();
   test_label();
   test_dict();
+  test_setup_symbols();
+  test_b();
 }
 
 int main(int argc, char* argv[]) {
@@ -513,9 +587,17 @@ int main(int argc, char* argv[]) {
     int addr = 0;
     while(cl_getline(&out_char) != -1) {
       int word;
-      if(asm_one(out_char, &word, ++addr) == PARSE_FAIL) return PARSE_FAIL;
-      emit_word(&emitter, word);
+      int result = asm_one(out_char, &word, addr);
+      if(result == PARSE_FAIL) {
+        fprintf(stderr, "%s: parse failed\n", out_char);
+        return PARSE_FAIL;
+      }
+      if(result != PARSE_LABEL) {
+        emit_word(&emitter, word);
+        addr++;
+      }
     }
+    resolve_symbols();
     save_words(&emitter);
     print_words(&emitter);
   }
