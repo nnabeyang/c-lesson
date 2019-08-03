@@ -74,6 +74,16 @@ static struct SymbolNode* symbols = &symbolRoot;
 void reset_unresolve_list() {
   symbols = &symbolRoot;
 }
+struct PendingNode {
+  int pos;
+  int value;
+  struct PendingNode* next;
+};
+static struct PendingNode pendingRoot;
+static struct PendingNode* pending_words = &pendingRoot;
+void reset_pending_words() {
+  pending_words = &pendingRoot;
+}
 struct substring {
   char* str;
   int len;
@@ -314,8 +324,8 @@ int asm_str(char* str, struct AsmNode* node) {
   node->u.word = 0xE5800000  + (rd << 16) + (rn << 12);
   return 1;
 }
-
-int asm_ldr(char* str, struct AsmNode* node) {
+void pending_add(int addr, int word);
+int asm_ldr(char* str, struct AsmNode* node, int addr) {
   int n, rd, rn;
   int offset = 0;
   n = parse_register(str, &rn);
@@ -324,25 +334,41 @@ int asm_ldr(char* str, struct AsmNode* node) {
   n = skip_symbol(str, ',');
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
-  n = skip_symbol(str, '[');
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  n = parse_register(str, &rd);
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  n = skip_symbol(str, ']');
-  if(n == PARSE_FAIL) {
-  n = skip_symbol(str, ',');
-  if(n == PARSE_FAIL) return PARSE_FAIL;
+  int pos = 0;
+  while(is_space(str[pos])) pos++;
+  str += pos;
+  if(str[0] == '=') {
+    rd = 15;
+    n = skip_symbol(str, '=');
+    if(n == PARSE_FAIL) return PARSE_FAIL;
     str += n;
-    while(is_space(str[0])) str++;
-    n = parse_immediate(str, &offset);
+    int word;
+    n = parse_hex(str, &word);
+    if(n == PARSE_FAIL) return PARSE_FAIL;
+    pending_add(addr, word);
+    node->u.word = 0xE5900000 + (rd << 16) + (rn << 12);
+    node->type = WORD;
+  } else if(str[0] == '[') {
+    n = skip_symbol(str, '[');
+    if(n == PARSE_FAIL) return PARSE_FAIL;
+    str += n;
+    n = parse_register(str, &rd);
     if(n == PARSE_FAIL) return PARSE_FAIL;
     str += n;
     n = skip_symbol(str, ']');
+   if(n == PARSE_FAIL) {
+     n = skip_symbol(str, ',');
     if(n == PARSE_FAIL) return PARSE_FAIL;
+      str += n;
+      while(is_space(str[0])) str++;
+      n = parse_immediate(str, &offset);
+      if(n == PARSE_FAIL) return PARSE_FAIL;
+      str += n;
+      n = skip_symbol(str, ']');
+      if(n == PARSE_FAIL) return PARSE_FAIL;
+    }
+    node->u.word = 0xE5100000 + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
   }
-  node->u.word = 0xE5100000 + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
   return 1;
 }
 
@@ -431,7 +457,7 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
   case 2:
     return asm_raw(str, node);
   case 3:
-    return asm_ldr(str, node);    
+    return asm_ldr(str, node, addr);
   case 4:
     return asm_str(str, node);
   default:
@@ -468,8 +494,27 @@ void symbol_add(int pos, int label_id) {
   symbols->next = v;
   symbols = v;
 }
+void pending_add(int pos, int value) {
+  struct PendingNode* v = malloc(sizeof(struct PendingNode));
+  v->pos = pos;
+  v->value = value;
+  v->next = NULL;
+  pending_words->next = v;
+  pending_words = v;
+}
 
-void resolve_symbols() {
+void resolve_symbols(struct Emitter* emitter) {
+  {
+    struct PendingNode* p = &pendingRoot;
+    while(p->next != NULL) {
+      p = p->next;
+      int addr = emitter->pos;
+      array[emitter->pos++] = p->value;
+      int word = array[p->pos];
+      int r_addr = (addr - 2 - p->pos) * 4;
+      array[p->pos] = word | r_addr;
+    }
+  }
   struct SymbolNode* p = &symbolRoot;
   while(p->next != NULL) {
     p = p->next;
@@ -480,6 +525,27 @@ void resolve_symbols() {
       array[p->pos] = word | (0XFFFFFF + r_addr);
     }
   }
+}
+
+static void test_ldr_immediate_label() {
+  reset_pending_words();
+  struct AsmNode node;
+  reset_dict();
+  setup_symbols();
+  int addr = 0;
+  struct Emitter emitter = {0};
+  assert(asm_one("ldr r1,=0x101f1000\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE59F1000);
+  emit_word(&emitter, node.u.word);
+  assert(asm_one("mov r1, r2\n", &node, 1) != PARSE_FAIL);
+  emit_word(&emitter, node.u.word);
+  emit_word(&emitter, node.u.word);
+  emit_word(&emitter, node.u.word);
+  emit_word(&emitter, node.u.word);
+  resolve_symbols(&emitter);
+  assert(array[0] == 0xE59F100c);
+  assert(array[5] == 0x101f1000);
 }
 
 static void test_parse_string() {
@@ -509,7 +575,7 @@ static void test_b() {
   emit_word(&emitter, node.u.word);
   assert(asm_one("b loop\n", &node, 1) == 1);
   emit_word(&emitter, node.u.word);
-  resolve_symbols();
+  resolve_symbols(&emitter);
   assert(array[1] == 0XEAFFFFFD);
 }
 
@@ -709,6 +775,7 @@ void unit_tests() {
   test_raw_str();
   test_str_to_word();
   test_str_to_word_long();
+  test_ldr_immediate_label();
 }
 
 int main(int argc, char* argv[]) {
@@ -752,7 +819,7 @@ int main(int argc, char* argv[]) {
         }
       }
     }
-    resolve_symbols();
+    resolve_symbols(&emitter);
     save_words(&emitter);
     print_words(&emitter);
   }
