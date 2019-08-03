@@ -2,6 +2,55 @@
 #include <string.h>
 #include "common.h"
 #include <stdlib.h>
+
+enum StrState {
+  START,
+  STR,
+  ESCAPE,
+  END
+};
+
+int parse_string(char* buf, char** out_str) {
+  static char tmpbuf[1024];
+  char* p = tmpbuf;
+  int i = 0;
+  enum StrState state =  START;
+  while(state != END) {
+    char ch = buf[i++];
+    if(ch == '\0') {
+      fprintf(stderr, "this is not closed double quote.\n");
+      return PARSE_FAIL;
+    }
+    switch(state) {
+      case START:
+        assert(ch == '"');
+        state = STR;
+        continue;
+      case STR:
+        if(ch == '\\') state = ESCAPE;
+        else if(ch == '"') state = END;
+        else {
+          *p++ = ch;
+        }
+        continue;
+      case ESCAPE:
+        if(ch == 'n') *p++ = '\n';
+        if(ch == '"') *p++ = '\"';
+        if(ch == '\\') *p++ = '\\';
+        state = STR;
+        continue;
+      default:
+        fprintf(stderr, "parse failed\n");
+        return PARSE_FAIL;      
+    }
+  }
+  *p = '\0';
+  size_t size = p - tmpbuf;
+  char* res = (char*) malloc(size);
+  memcpy(res, tmpbuf, size);
+  *out_str = res;
+  return size;
+}
 struct SymbolNode {
   int pos;
   int label_id;
@@ -284,9 +333,27 @@ int asm_ldr(char* str, int* out_word) {
   return 1;
 }
 
+static void str_to_word(char* str, int* out_word) {
+  int v = 0;
+  for(int i = 0; i < 4; i++) {
+    int ch = str[i];
+    if(ch == '\0') break;    
+    v += ch << (i * 8);
+  }
+  *out_word = v;
+}
 int asm_raw(char* str, int* out_word) {
   int n, v;
-  n = parse_hex(str, &v);
+  int  pos = 0;
+  while(is_space(str[pos])) pos++;
+  str += pos;
+  if(str[0] == '"') {
+    char* out_str;
+    n = parse_string(str, &out_str);
+    str_to_word(out_str, &v);
+  } else {
+    n = parse_hex(str, &v);
+  }
   if(n == PARSE_FAIL) return PARSE_FAIL;
   *out_word = v;
   return 1;
@@ -398,6 +465,20 @@ void resolve_symbols() {
   }
 }
 
+static void test_parse_string() {
+  char* out_buf;
+  assert(parse_string("\"hello, world\"", &out_buf) == 12);
+  assert(strcmp(out_buf, "hello, world") == 0);
+  
+  assert(parse_string("\"End with back slash. \\\\\"", &out_buf) == 22);
+  assert(strcmp(out_buf, "End with back slash. \\") == 0); 
+
+  assert(parse_string("\"Back slash and double quote \\\\\\\"", &out_buf) == PARSE_FAIL);
+
+  assert(parse_string("\"This is \\\" double qouote!\"", &out_buf) == 24);
+  assert(strcmp(out_buf, "This is \" double qouote!") == 0);  
+}
+
 static void test_b() {
   int out_word;
   reset_symbols();
@@ -495,6 +576,20 @@ static void test_raw_hex() {
   assert(out_word == 0x12345678);
 }
 
+static void test_raw_str() {
+  int out_word;
+  assert(asm_one(".raw \"test\"\n", &out_word, 0) != PARSE_FAIL);
+  assert(out_word == 0x74736574);
+}
+
+static void test_str_to_word() {
+  int out_word;
+  str_to_word("test", &out_word);
+  assert(out_word == 0x74736574);
+  str_to_word("abc", &out_word);
+  assert(out_word == 0x00636261);
+}
+
 static void test_parse_immediate() {
   int v;
   parse_immediate(" #0x68", &v);
@@ -569,6 +664,9 @@ void unit_tests() {
   test_dict();
   test_setup_symbols();
   test_b();
+  test_parse_string();
+  test_raw_str();
+  test_str_to_word();
 }
 
 int main(int argc, char* argv[]) {
