@@ -3,6 +3,19 @@
 #include "common.h"
 #include <stdlib.h>
 
+enum AsmType {
+  WORD,
+  RAW
+};
+
+struct AsmNode {
+  enum AsmType type;
+  union {
+    int word;
+    char* str;
+  } u;
+};
+
 enum StrState {
   START,
   STR,
@@ -281,7 +294,7 @@ int skip_symbol(char* str, int symbol) {
   else return PARSE_FAIL;
 }
 
-int asm_str(char* str, int* out_word) {
+int asm_str(char* str, struct AsmNode* node) {
   int n, rd, rn;
   n = parse_register(str, &rn);
   if(n == PARSE_FAIL) return PARSE_FAIL;
@@ -298,11 +311,11 @@ int asm_str(char* str, int* out_word) {
   n = skip_symbol(str, ']');
   if(n == PARSE_FAIL) return PARSE_FAIL;
 
-  *out_word = 0xE5800000  + (rd << 16) + (rn << 12);
+  node->u.word = 0xE5800000  + (rd << 16) + (rn << 12);
   return 1;
 }
 
-int asm_ldr(char* str, int* out_word) {
+int asm_ldr(char* str, struct AsmNode* node) {
   int n, rd, rn;
   int offset = 0;
   n = parse_register(str, &rn);
@@ -329,7 +342,7 @@ int asm_ldr(char* str, int* out_word) {
     n = skip_symbol(str, ']');
     if(n == PARSE_FAIL) return PARSE_FAIL;
   }
-  *out_word = 0xE5100000 + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
+  node->u.word = 0xE5100000 + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
   return 1;
 }
 
@@ -342,7 +355,8 @@ static void str_to_word(char* str, int* out_word) {
   }
   *out_word = v;
 }
-int asm_raw(char* str, int* out_word) {
+
+int asm_raw(char* str, struct AsmNode* node) {
   int n, v;
   int  pos = 0;
   while(is_space(str[pos])) pos++;
@@ -355,11 +369,11 @@ int asm_raw(char* str, int* out_word) {
     n = parse_hex(str, &v);
   }
   if(n == PARSE_FAIL) return PARSE_FAIL;
-  *out_word = v;
+  node->u.word = v;
   return 1;
 }
 
-int asm_mov(char* str, int* out_word) {
+int asm_mov(char* str, struct AsmNode* node) {
   int n, r1, rm;
   n = parse_register(str, &r1);
   if(n == PARSE_FAIL) return PARSE_FAIL;
@@ -375,11 +389,11 @@ int asm_mov(char* str, int* out_word) {
     n = parse_immediate(str, &rm);
   }
   if(n == PARSE_FAIL) return PARSE_FAIL;
-  *out_word = 0xE1A00000 + (r1 << 12) + rm + (is_immediate << 25);
+  node->u.word = 0xE1A00000 + (r1 << 12) + rm + (is_immediate << 25);
   return 1;
 }
 
-int asm_b(char* str, int* out_word, int addr) {
+int asm_b(char* str, struct AsmNode* node, int addr) {
   int n;
   struct substring out_subs = {0};
   int pos = 0;
@@ -389,11 +403,11 @@ int asm_b(char* str, int* out_word, int addr) {
   if(n == PARSE_FAIL) return n;
   int label_id = to_label_symbol(out_subs.str, out_subs.len);
   symbol_add(addr, label_id);
-  *out_word = 0xEA000000;
+  node->u.word = 0xEA000000;
   return 1;
 }
 
-int asm_one(char* str, int* out_word, int addr) {
+int asm_one(char* str, struct AsmNode* node, int addr) {
   int n;
   struct substring out_subs = {0};
   int r1, rm;
@@ -408,15 +422,15 @@ int asm_one(char* str, int* out_word, int addr) {
   int symbol = to_mnemonic_symbol(out_subs.str, out_subs.len);
   switch(symbol) {
   case 0:
-    return asm_b(str, out_word, addr);
+    return asm_b(str, node, addr);
   case 1:
-    return asm_mov(str, out_word);
+    return asm_mov(str, node);
   case 2:
-    return asm_raw(str, out_word);
+    return asm_raw(str, node);
   case 3:
-    return asm_ldr(str, out_word);
+    return asm_ldr(str, node);    
   case 4:
-    return asm_str(str, out_word);
+    return asm_str(str, node);
   default:
     return PARSE_FAIL;
   }
@@ -480,18 +494,18 @@ static void test_parse_string() {
 }
 
 static void test_b() {
-  int out_word;
+  struct AsmNode node;
   reset_symbols();
   reset_dict();
   setup_symbols();
   int addr = 0;
   struct Emitter emitter = {0};
   emitter.elems = array;
-  assert(asm_one("loop:\n", &out_word, 0) == PARSE_LABEL);
-  assert(asm_one("mov r1, r2\n", &out_word, 0) == 1);
-  emit_word(&emitter, out_word);
-  assert(asm_one("b loop\n", &out_word, 1) == 1);
-  emit_word(&emitter, out_word);
+  assert(asm_one("loop:\n", &node, 0) == PARSE_LABEL);
+  assert(asm_one("mov r1, r2\n", &node, 0) == 1);
+  emit_word(&emitter, node.u.word);
+  assert(asm_one("b loop\n", &node, 1) == 1);
+  emit_word(&emitter, node.u.word);
   resolve_symbols();
   assert(array[1] == 0XEAFFFFFD);
 }
@@ -517,13 +531,13 @@ static void test_dict() {
   reset_dict();
 }
 static void test_label() {
-  int out_word;
+  struct AsmNode node;
   reset_symbols();
   reset_dict();
   int addr = 0;
-  assert(asm_one("loop:\n", &out_word, ++addr) == PARSE_LABEL);
-  assert(asm_one("sum:\n", &out_word, ++addr) == PARSE_LABEL);
-  assert(asm_one("mov:\n", &out_word, ++addr) == PARSE_LABEL);
+  assert(asm_one("loop:\n", &node, ++addr) == PARSE_LABEL);
+  assert(asm_one("sum:\n", &node, ++addr) == PARSE_LABEL);
+  assert(asm_one("mov:\n", &node, ++addr) == PARSE_LABEL);
   assert(to_label_symbol("loop", 4) == 10000);
   int out;
   assert(dict_get(10000, &out) == 1);
@@ -556,30 +570,31 @@ static void test_to_mnemonic_symbol() {
 }
 
 static void test_str() {
-  int out_word;
-  assert(asm_one("str r0, [r1]\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0xE5810000);
+  struct AsmNode node;
+  assert(asm_one("str r0, [r1]\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0xE5810000);
 }
+
 static void test_ldr() {
-  int out_word;
-  assert(asm_one("ldr r1, [r15, #0x30]\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0xE59F1030);
-  assert(asm_one("ldr r1, [r15, #-0x30]\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0xE51F1030);
-  assert(asm_one("ldr r1, [r15]\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0xE59F1000);
+  struct AsmNode node;
+  assert(asm_one("ldr r1, [r15, #0x30]\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0xE59F1030);
+  assert(asm_one("ldr r1, [r15, #-0x30]\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0xE51F1030);
+  assert(asm_one("ldr r1, [r15]\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0xE59F1000);
 }
 
 static void test_raw_hex() {
-  int out_word;
-  assert(asm_one(".raw 0x12345678\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0x12345678);
+  struct AsmNode node;
+  assert(asm_one(".raw 0x12345678\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0x12345678);
 }
 
 static void test_raw_str() {
-  int out_word;
-  assert(asm_one(".raw \"test\"\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0x74736574);
+  struct AsmNode node;
+  assert(asm_one(".raw \"test\"\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0x74736574);
 }
 
 static void test_str_to_word() {
@@ -614,12 +629,13 @@ static void test_parse_register() {
   assert(parse_register(buf, &r2) == 2);
   assert(r2 == 2);
 }
+
 static void test_asm_one() {
-  int out_word;
-  assert(asm_one("mov r1, r2\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0xE1A01002);
-  assert(asm_one("mov r2, #0x68\n", &out_word, 0) != PARSE_FAIL);
-  assert(out_word == 0xE3A02068);
+  struct AsmNode node;
+  assert(asm_one("mov r1, r2\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0xE1A01002);
+  assert(asm_one("mov r2, #0x68\n", &node, 0) != PARSE_FAIL);
+  assert(node.u.word == 0xE3A02068);
 }
 
 static void test_parse_one() {
@@ -656,7 +672,7 @@ void unit_tests() {
   test_raw_hex();
   test_ldr();
   test_parse_immediate_negative();
-  test_str();
+  test_str();  
   test_to_mnemonic_symbol();
   test_to_label_symbol();
   test_parse_one_label();
@@ -684,14 +700,14 @@ int main(int argc, char* argv[]) {
     emitter.elems = array;
     int addr = 0;
     while(cl_getline(&out_char) != -1) {
-      int word;
-      int result = asm_one(out_char, &word, addr);
+      struct AsmNode node;
+      int result = asm_one(out_char, &node, addr);
       if(result == PARSE_FAIL) {
         fprintf(stderr, "%s: parse failed\n", out_char);
         return PARSE_FAIL;
       }
       if(result != PARSE_LABEL) {
-        emit_word(&emitter, word);
+        emit_word(&emitter, node.u.word);
         addr++;
       }
     }
