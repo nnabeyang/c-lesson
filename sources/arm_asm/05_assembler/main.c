@@ -364,12 +364,15 @@ int asm_raw(char* str, struct AsmNode* node) {
   if(str[0] == '"') {
     char* out_str;
     n = parse_string(str, &out_str);
-    str_to_word(out_str, &v);
+    if(n == PARSE_FAIL) return PARSE_FAIL;
+    node->type = RAW;
+    node->u.str = out_str;
   } else {
     n = parse_hex(str, &v);
+    if(n == PARSE_FAIL) return PARSE_FAIL;
+    node->type = WORD;
+    node->u.word = v;
   }
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  node->u.word = v;
   return 1;
 }
 
@@ -443,7 +446,7 @@ void emit_word(struct Emitter* emitter, int oneword) {
 }
 void print_words(struct Emitter* emitter) {
   for(int i = 0; i < emitter->pos; i++) {
-    printf("0x%X\n", array[i]);
+    printf("0x%08X\n", array[i]);
   }
 }
 void save_words(struct Emitter* emitter) {
@@ -572,16 +575,20 @@ static void test_to_mnemonic_symbol() {
 static void test_str() {
   struct AsmNode node;
   assert(asm_one("str r0, [r1]\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
   assert(node.u.word == 0xE5810000);
 }
 
 static void test_ldr() {
   struct AsmNode node;
   assert(asm_one("ldr r1, [r15, #0x30]\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
   assert(node.u.word == 0xE59F1030);
   assert(asm_one("ldr r1, [r15, #-0x30]\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
   assert(node.u.word == 0xE51F1030);
   assert(asm_one("ldr r1, [r15]\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
   assert(node.u.word == 0xE59F1000);
 }
 
@@ -594,7 +601,25 @@ static void test_raw_hex() {
 static void test_raw_str() {
   struct AsmNode node;
   assert(asm_one(".raw \"test\"\n", &node, 0) != PARSE_FAIL);
-  assert(node.u.word == 0x74736574);
+  assert(node.type == RAW);
+  assert(strcmp(node.u.str, "test") == 0);
+}
+
+static void test_str_to_word_long() {
+  int out_word;
+  char* str = "hello, world\n";
+  int n = strlen(str) / 4;
+  int expects[4] = {
+    0x6c6c6568,
+    0x77202c6f,
+    0x646c726f,
+    0x0000000a
+  };
+  for(int i = 0; i <= n; i++) {
+    str_to_word(str, &out_word);
+    assert(out_word == expects[i]);
+    str += 4;
+  }
 }
 
 static void test_str_to_word() {
@@ -683,6 +708,7 @@ void unit_tests() {
   test_parse_string();
   test_raw_str();
   test_str_to_word();
+  test_str_to_word_long();
 }
 
 int main(int argc, char* argv[]) {
@@ -707,8 +733,23 @@ int main(int argc, char* argv[]) {
         return PARSE_FAIL;
       }
       if(result != PARSE_LABEL) {
-        emit_word(&emitter, node.u.word);
-        addr++;
+        switch(node.type) {
+          case WORD:
+          emit_word(&emitter, node.u.word);
+          addr++;
+          break;
+          case RAW: {
+            char* str = node.u.str;
+            int n = strlen(str) / 4;
+            int out_word;
+            for(int i = 0; i <= n; i++) {
+              str_to_word(str, &out_word);
+              emit_word(&emitter, out_word);
+              addr++;
+              str += 4;
+            }
+          }
+        }
       }
     }
     resolve_symbols();
