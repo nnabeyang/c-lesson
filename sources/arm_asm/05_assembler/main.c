@@ -73,6 +73,7 @@ static struct SymbolNode symbolRoot;
 static struct SymbolNode* symbols = &symbolRoot;
 void reset_unresolve_list() {
   symbols = &symbolRoot;
+  symbolRoot.next = NULL;
 }
 struct PendingNode {
   int pos;
@@ -83,6 +84,7 @@ static struct PendingNode pendingRoot;
 static struct PendingNode* pending_words = &pendingRoot;
 void reset_pending_words() {
   pending_words = &pendingRoot;
+  pendingRoot.next = NULL;
 }
 struct substring {
   char* str;
@@ -342,12 +344,26 @@ int asm_ldr(char* str, struct AsmNode* node, int addr) {
     n = skip_symbol(str, '=');
     if(n == PARSE_FAIL) return PARSE_FAIL;
     str += n;
-    int word;
-    n = parse_hex(str, &word);
-    if(n == PARSE_FAIL) return PARSE_FAIL;
-    pending_add(addr, word);
-    node->u.word = 0xE5900000 + (rd << 16) + (rn << 12);
-    node->type = WORD;
+    if(str[0] == '0' || str[0] == '-') {
+      int word;
+      n = parse_hex(str, &word);
+      if(n == PARSE_FAIL) return PARSE_FAIL;
+      pending_add(addr, word);
+      node->u.word = 0xE5900000 + (rd << 16) + (rn << 12);
+      node->type = WORD;
+    } else {
+      rd = 15;
+      struct substring out_subs = {0};
+      int pos = 0;
+      while(is_space(str[pos])) pos++;
+      str += pos;
+      n = parse_one(str, &out_subs);
+      if(n == PARSE_FAIL) return PARSE_FAIL;
+      int label_id = to_label_symbol(out_subs.str, out_subs.len);
+      symbol_add(addr, label_id);
+      node->type = WORD;
+      node->u.word = 0xE5900000 + (rd << 16) + (rn << 12);
+    }
   } else if(str[0] == '[') {
     n = skip_symbol(str, '[');
     if(n == PARSE_FAIL) return PARSE_FAIL;
@@ -503,8 +519,8 @@ void pending_add(int pos, int value) {
   pending_words = v;
 }
 
-void resolve_symbols(struct Emitter* emitter) {
-  {
+void resolve_pendings(struct Emitter* emitter) {
+    {
     struct PendingNode* p = &pendingRoot;
     while(p->next != NULL) {
       p = p->next;
@@ -515,20 +531,64 @@ void resolve_symbols(struct Emitter* emitter) {
       array[p->pos] = word | r_addr;
     }
   }
+}
+void resolve_symbols(struct Emitter* emitter) {
   struct SymbolNode* p = &symbolRoot;
   while(p->next != NULL) {
     p = p->next;
     int addr;
     if(dict_get(p->label_id, &addr) == 1) {
-      int r_addr = addr - p->pos - 1;
       int word = array[p->pos];
-      array[p->pos] = word | (0XFFFFFF + r_addr);
+      if((0xEA000000 & word) == 0xEA000000) {
+        int r_addr = addr - p->pos - 1;
+        array[p->pos] = word | (0XFFFFFF + r_addr);
+      } else {
+        int addr2 = emitter->pos++;
+        array[addr2] = 0X00010000 | (addr * 4);
+        array[p->pos] = word | (addr2 - p->pos - 2) * 4;
+      }
     }
   }
 }
 
+static void test_ldr_message_label() {
+  reset_pending_words();
+  reset_unresolve_list();
+  reset_symbols();
+  reset_dict();
+  setup_symbols();
+  struct AsmNode node;
+  reset_dict();
+  int addr = 0;
+  struct Emitter emitter = {0};
+  assert(asm_one("ldr r1,=message\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE59F1000);
+  emit_word(&emitter, node.u.word);
+  assert(asm_one("mov r1, r2\n", &node, 1) != PARSE_FAIL);
+  emit_word(&emitter, node.u.word);
+  emit_word(&emitter, node.u.word);
+  emit_word(&emitter, node.u.word);
+  assert(asm_one("message:", &node, 4) != PARSE_FAIL);
+  assert(asm_one(".raw \"hello, world\\n\"", &node, 4) != PARSE_FAIL);
+  char* str = node.u.str;
+  int n = strlen(str) / 4;
+  int out_word;
+  for(int i = 0; i <= n; i++) {
+    str_to_word(str, &out_word);
+    emit_word(&emitter, out_word);
+    addr++;
+    str += 4;
+  }
+  resolve_pendings(&emitter);
+  resolve_symbols(&emitter);
+  assert(array[0] == 0xE59F1018);
+  assert(array[8] == 0x00010010);
+}
+
 static void test_ldr_immediate_label() {
   reset_pending_words();
+  reset_unresolve_list();
   struct AsmNode node;
   reset_dict();
   setup_symbols();
@@ -543,6 +603,7 @@ static void test_ldr_immediate_label() {
   emit_word(&emitter, node.u.word);
   emit_word(&emitter, node.u.word);
   emit_word(&emitter, node.u.word);
+  resolve_pendings(&emitter);
   resolve_symbols(&emitter);
   assert(array[0] == 0xE59F100c);
   assert(array[5] == 0x101f1000);
@@ -776,6 +837,7 @@ void unit_tests() {
   test_str_to_word();
   test_str_to_word_long();
   test_ldr_immediate_label();
+  test_ldr_message_label();
 }
 
 int main(int argc, char* argv[]) {
@@ -819,6 +881,7 @@ int main(int argc, char* argv[]) {
         }
       }
     }
+    resolve_pendings(&emitter);
     resolve_symbols(&emitter);
     save_words(&emitter);
     print_words(&emitter);
