@@ -201,6 +201,7 @@ void reset_symbols() {
 
 void setup_symbols() {
   to_mnemonic_symbol("b", 1);
+  to_mnemonic_symbol("bne", 3);
   to_mnemonic_symbol("mov", 3);
   to_mnemonic_symbol(".raw", 4);
   to_mnemonic_symbol("ldr", 3);
@@ -448,7 +449,7 @@ int asm_mov(char* str, struct AsmNode* node) {
   return 1;
 }
 
-int asm_b(char* str, struct AsmNode* node, int addr) {
+int asm_b(char* str, struct AsmNode* node, int addr, int base_word) {
   int n;
   struct substring out_subs = {0};
   int pos = 0;
@@ -458,7 +459,7 @@ int asm_b(char* str, struct AsmNode* node, int addr) {
   if(n == PARSE_FAIL) return n;
   int label_id = to_label_symbol(out_subs.str, out_subs.len);
   symbol_add(addr, label_id);
-  node->u.word = 0xEA000000;
+  node->u.word = base_word;
   return 1;
 }
 
@@ -477,18 +478,20 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
   int symbol = to_mnemonic_symbol(out_subs.str, out_subs.len);
   switch(symbol) {
   case 0:
-    return asm_b(str, node, addr);
+    return asm_b(str, node, addr, 0xEA000000);
   case 1:
-    return asm_mov(str, node);
+    return asm_b(str, node, addr, 0x1A000000);
   case 2:
-    return asm_raw(str, node);
+    return asm_mov(str, node);
   case 3:
-    return asm_ldr(str, node, addr, 0xE5100000);
+    return asm_raw(str, node);
   case 4:
-    return asm_ldr(str, node, addr, 0xE5500000);
+    return asm_ldr(str, node, addr, 0xE5100000);
   case 5:
-    return asm_str(str, node);
+    return asm_ldr(str, node, addr, 0xE5500000);
   case 6:
+    return asm_str(str, node);
+  case 7:
     return asm_cmp(str, node);
   default:
     return PARSE_FAIL;
@@ -546,6 +549,10 @@ void resolve_pendings(struct Emitter* emitter) {
     }
   }
 }
+static int is_b(int word) {
+  return (((word >> 24) & 0xF) & 0B1010) == 0B1010;
+}
+
 void resolve_symbols(struct Emitter* emitter) {
   struct SymbolNode* p = &symbolRoot;
   while(p->next != NULL) {
@@ -553,7 +560,7 @@ void resolve_symbols(struct Emitter* emitter) {
     int addr;
     if(dict_get(p->label_id, &addr) == 1) {
       int word = array[p->pos];
-      if((0xEA000000 & word) == 0xEA000000) {
+      if(is_b(word)) {
         int r_addr = addr - p->pos - 1;
         array[p->pos] = word | (0XFFFFFF + r_addr);
       } else {
@@ -654,6 +661,23 @@ static void test_b() {
   assert(array[1] == 0XEAFFFFFD);
 }
 
+static void test_bne() {
+  struct AsmNode node;
+  reset_symbols();
+  reset_dict();
+  setup_symbols();
+  int addr = 0;
+  struct Emitter emitter = {0};
+  emitter.elems = array;
+  assert(asm_one("loop:\n", &node, 0) == PARSE_LABEL);
+  assert(asm_one("mov r1, r2\n", &node, 0) == 1);
+  emit_word(&emitter, node.u.word);
+  assert(asm_one("bne loop\n", &node, 1) == 1);
+  emit_word(&emitter, node.u.word);
+  resolve_symbols(&emitter);
+  assert(array[1] == 0X1AFFFFFD);
+}
+
 static void test_setup_symbols() {
   reset_symbols();
   setup_symbols();
@@ -708,11 +732,11 @@ static void test_to_label_symbol() {
 static void test_to_mnemonic_symbol() {
   reset_symbols();
   setup_symbols();
-  assert(to_mnemonic_symbol("mov", 3) == 1);
-  assert(to_mnemonic_symbol("str", 3) == 5);
-  assert(to_mnemonic_symbol(".raw", 4) == 2);
-  assert(to_mnemonic_symbol("ldr", 3) == 3);
-  assert(to_mnemonic_symbol("ldrb", 4) == 4);
+  assert(to_mnemonic_symbol("mov", 3) == 2);
+  assert(to_mnemonic_symbol("str", 3) == 6);
+  assert(to_mnemonic_symbol(".raw", 4) == 3);
+  assert(to_mnemonic_symbol("ldr", 3) == 4);
+  assert(to_mnemonic_symbol("ldrb", 4) == 5);
   reset_symbols();
 }
 
@@ -870,6 +894,7 @@ void unit_tests() {
   test_ldr_immediate_label();
   test_ldr_message_label();
   test_ldrb();
+  test_bne();
 }
 
 int main(int argc, char* argv[]) {
