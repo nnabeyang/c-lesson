@@ -3,4 +3,4 @@ mov r1, r2
 mov r1, r2
 mov r1, r2
 message:
-.raw "hello, world\n"
+    .raw "hello, world\n"

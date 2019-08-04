@@ -3,6 +3,7 @@
 #include "common.h"
 #include <stdlib.h>
 
+#define skip_space(str) while(is_space(*str)) str++
 enum AsmType {
   WORD,
   RAW
@@ -231,40 +232,42 @@ static int is_register(int ch) {
 }
 
 int parse_one(char* str, struct substring* out_subs) {
-  int pos = 0;
-  if(str[pos] == '\0') return 0;
-  if(str[pos] == ':') {
+  char* p = str;
+  if(*str == '\0') return 0;
+  if(*str == ':') {
       out_subs->str = str;
       out_subs->len = 1;
       return 1;
   }
-  if(is_space(str[pos])) {
-    while(is_space(str[pos++]));
+  if(is_space(*str)) {
+    char* p = str;
+    skip_space(str);
     out_subs->str = str;
-    out_subs->len = pos - 1;
-    return pos - 1;
+    out_subs->len = (str - p) - 1;
+    return out_subs->len;
   }
-  if(str[pos] == '.' || is_alnum(str[pos])) {
-    while(str[pos] == '.' || is_alnum(str[pos]) || str[pos] == '_') pos++;
-    out_subs->str = str;
-    out_subs->len = pos;
-    return pos;
+  if(*str == '.' || is_alnum(*str)) {    
+    while(*str == '.' || is_alnum(*str) || *str == '_') str++;
+    out_subs->str = p;
+    out_subs->len = str - p;
+    return out_subs->len;
   }
   return PARSE_FAIL;
 }
 
 int parse_register(char* str, int* out_register) {
   int  pos = 0;
-  while(is_space(str[pos])) pos++;
-  if(str[pos] == 'r') {
+  char* p = str;
+  skip_space(str);
+  if(*str == 'r') {
     int v = 0;
-    int c = str[++pos];
+    int c = *(++str);
     do {
       v = v * 10 + c - '0';
-      c = str[++pos];
+      c = *(++str);
     }while(is_digit(c));
     *out_register = v;
-    return pos;
+    return str - p;
   } else {
     return PARSE_FAIL;
   }
@@ -272,16 +275,17 @@ int parse_register(char* str, int* out_register) {
 
 int parse_hex(char* str, int* out_value) {
   int  pos = 0;
-  while(is_space(str[pos])) pos++;
+  char* p = str;
+  skip_space(p);
   int is_negative = 0;
   if(str[pos] == '-') {
     is_negative = 1;
-    pos++;
+    str++;
   }
-  if(strncmp(&str[pos], "0x", 2) != 0) return PARSE_FAIL;
-  pos += 2;
+  if(strncmp(str, "0x", 2) != 0) return PARSE_FAIL;
+  str+=2;
   int v = 0;
-  int c = str[pos];
+  int c = *str;
   while(is_hex(c)) {
     if(is_digit(c)) {
       v = v * 16 + c - '0';
@@ -290,23 +294,22 @@ int parse_hex(char* str, int* out_value) {
     } else {
       v = v * 16 + c - 'a' + 10;
     }
-    c = str[++pos];
+    c = *(++str);
   }
   *out_value = (is_negative)? -v : v;
-  return pos;
+  return str - p;
 }
 
 int parse_immediate(char* str, int* out_value) {
-  int  pos = 0;
-  while(is_space(str[pos])) pos++;
-  if(strncmp(&str[pos], "#", 1) != 0) return PARSE_FAIL;
-  return parse_hex(&str[++pos], out_value) + 1;
+  skip_space(str);
+  if(strncmp(str, "#", 1) != 0) return PARSE_FAIL;
+  return parse_hex((str + 1), out_value) + 1;
 }
 
 int skip_symbol(char* str, int symbol) {
-  int pos = 0;
-  while(is_space(str[pos])) pos++;
-  if(str[pos] == symbol) return pos + 1;
+  char* p = str;
+  skip_space(str);
+  if(*str == symbol) return (str - p) + 1;
   else return PARSE_FAIL;
 }
 
@@ -353,15 +356,14 @@ int asm_ldr(char* str, struct AsmNode* node, int addr, int base_word) {
   n = skip_symbol(str, ',');
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
-  int pos = 0;
-  while(is_space(str[pos])) pos++;
-  str += pos;
-  if(str[0] == '=') {
+  char* p = str;
+  skip_space(str);
+  if(*str == '=') {
     rd = 15;
     n = skip_symbol(str, '=');
     if(n == PARSE_FAIL) return PARSE_FAIL;
     str += n;
-    if(str[0] == '0' || str[0] == '-') {
+    if(*str == '0' || *str == '-') {
       int word;
       n = parse_hex(str, &word);
       if(n == PARSE_FAIL) return PARSE_FAIL;
@@ -371,9 +373,7 @@ int asm_ldr(char* str, struct AsmNode* node, int addr, int base_word) {
     } else {
       rd = 15;
       struct substring out_subs = {0};
-      int pos = 0;
-      while(is_space(str[pos])) pos++;
-      str += pos;
+      skip_space(str);
       n = parse_one(str, &out_subs);
       if(n == PARSE_FAIL) return PARSE_FAIL;
       int label_id = to_label_symbol(out_subs.str, out_subs.len);
@@ -381,7 +381,7 @@ int asm_ldr(char* str, struct AsmNode* node, int addr, int base_word) {
       node->type = WORD;
       node->u.word = base_word + (1 << 23) + (rd << 16) + (rn << 12);
     }
-  } else if(str[0] == '[') {
+  } else if(*str == '[') {
     n = skip_symbol(str, '[');
     if(n == PARSE_FAIL) return PARSE_FAIL;
     str += n;
@@ -393,7 +393,7 @@ int asm_ldr(char* str, struct AsmNode* node, int addr, int base_word) {
      n = skip_symbol(str, ',');
     if(n == PARSE_FAIL) return PARSE_FAIL;
       str += n;
-      while(is_space(str[0])) str++;
+      skip_space(str);
       n = parse_immediate(str, &offset);
       if(n == PARSE_FAIL) return PARSE_FAIL;
       str += n;
@@ -418,9 +418,7 @@ static void str_to_word(char* str, int* out_word) {
 
 int asm_raw(char* str, struct AsmNode* node) {
   int n, v;
-  int  pos = 0;
-  while(is_space(str[pos])) pos++;
-  str += pos;
+  skip_space(str);
   if(str[0] == '"') {
     char* out_str;
     n = parse_string(str, &out_str);
@@ -444,7 +442,7 @@ int asm_mov(char* str, struct AsmNode* node) {
   n = skip_symbol(str, ',');
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
-  while(is_space(str[0])) str++;
+  skip_space(str);
   int is_immediate = !is_register(str[0]);
   if(!is_immediate) {
     n = parse_register(str, &rm);
@@ -459,9 +457,7 @@ int asm_mov(char* str, struct AsmNode* node) {
 int asm_b(char* str, struct AsmNode* node, int addr, int base_word) {
   int n;
   struct substring out_subs = {0};
-  int pos = 0;
-  while(is_space(str[pos])) pos++;
-  str += pos;
+  skip_space(str);
   n = parse_one(str, &out_subs);
   if(n == PARSE_FAIL) return n;
   int label_id = to_label_symbol(out_subs.str, out_subs.len);
@@ -474,6 +470,7 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
   int n;
   struct substring out_subs = {0};
   int r1, rm;
+  skip_space(str);
   n = parse_one(str, &out_subs);
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
