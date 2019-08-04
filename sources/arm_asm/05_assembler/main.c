@@ -206,6 +206,7 @@ void setup_symbols() {
   to_mnemonic_symbol("ldr", 3);
   to_mnemonic_symbol("ldrb", 4);
   to_mnemonic_symbol("str", 3);
+  to_mnemonic_symbol("cmp", 3);
 }
 
 static int is_space(int ch) {
@@ -327,6 +328,13 @@ int asm_str(char* str, struct AsmNode* node) {
   node->u.word = 0xE5800000  + (rd << 16) + (rn << 12);
   return 1;
 }
+
+int asm_cmp(char* str, struct AsmNode* node) {
+  node->u.word = 0xE3530000 ;
+  node->type = WORD;
+  return 1;
+}
+
 void pending_add(int addr, int word);
 int asm_ldr(char* str, struct AsmNode* node, int addr, int base_word) {
   int n, rd, rn;
@@ -480,6 +488,8 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
     return asm_ldr(str, node, addr, 0xE5500000);
   case 5:
     return asm_str(str, node);
+  case 6:
+    return asm_cmp(str, node);
   default:
     return PARSE_FAIL;
   }
@@ -731,6 +741,13 @@ static void test_ldrb() {
   assert(asm_one("ldrb r3, [r1]\n", &node, 0) != PARSE_FAIL);
   assert(node.type == WORD);
   assert(node.u.word == 0xE5D13000);
+}
+
+static void test_cmp() {
+  struct AsmNode node;
+  assert(asm_one("cmp r3, #0\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE3530000);
 }
 
 static void test_raw_hex() {
