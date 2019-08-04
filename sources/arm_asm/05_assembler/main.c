@@ -204,6 +204,7 @@ void setup_symbols() {
   to_mnemonic_symbol("mov", 3);
   to_mnemonic_symbol(".raw", 4);
   to_mnemonic_symbol("ldr", 3);
+  to_mnemonic_symbol("ldrb", 4);
   to_mnemonic_symbol("str", 3);
 }
 
@@ -327,7 +328,7 @@ int asm_str(char* str, struct AsmNode* node) {
   return 1;
 }
 void pending_add(int addr, int word);
-int asm_ldr(char* str, struct AsmNode* node, int addr) {
+int asm_ldr(char* str, struct AsmNode* node, int addr, int base_word) {
   int n, rd, rn;
   int offset = 0;
   n = parse_register(str, &rn);
@@ -349,7 +350,7 @@ int asm_ldr(char* str, struct AsmNode* node, int addr) {
       n = parse_hex(str, &word);
       if(n == PARSE_FAIL) return PARSE_FAIL;
       pending_add(addr, word);
-      node->u.word = 0xE5900000 + (rd << 16) + (rn << 12);
+      node->u.word = base_word + (1 << 23) + (rd << 16) + (rn << 12);
       node->type = WORD;
     } else {
       rd = 15;
@@ -362,7 +363,7 @@ int asm_ldr(char* str, struct AsmNode* node, int addr) {
       int label_id = to_label_symbol(out_subs.str, out_subs.len);
       symbol_add(addr, label_id);
       node->type = WORD;
-      node->u.word = 0xE5900000 + (rd << 16) + (rn << 12);
+      node->u.word = base_word + (1 << 23) + (rd << 16) + (rn << 12);
     }
   } else if(str[0] == '[') {
     n = skip_symbol(str, '[');
@@ -383,7 +384,8 @@ int asm_ldr(char* str, struct AsmNode* node, int addr) {
       n = skip_symbol(str, ']');
       if(n == PARSE_FAIL) return PARSE_FAIL;
     }
-    node->u.word = 0xE5100000 + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
+    node->u.word = base_word + ((offset >= 0) << 23) + (rd << 16) + (rn << 12) + abs(offset);
+    node->type = WORD;
   }
   return 1;
 }
@@ -473,8 +475,10 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
   case 2:
     return asm_raw(str, node);
   case 3:
-    return asm_ldr(str, node, addr);
+    return asm_ldr(str, node, addr, 0xE5100000);
   case 4:
+    return asm_ldr(str, node, addr, 0xE5500000);
+  case 5:
     return asm_str(str, node);
   default:
     return PARSE_FAIL;
@@ -692,10 +696,13 @@ static void test_to_label_symbol() {
 }
 
 static void test_to_mnemonic_symbol() {
+  reset_symbols();
+  setup_symbols();
   assert(to_mnemonic_symbol("mov", 3) == 1);
-  assert(to_mnemonic_symbol("str", 3) == 4);
+  assert(to_mnemonic_symbol("str", 3) == 5);
   assert(to_mnemonic_symbol(".raw", 4) == 2);
-    assert(to_mnemonic_symbol("ldr", 3) == 3);
+  assert(to_mnemonic_symbol("ldr", 3) == 3);
+  assert(to_mnemonic_symbol("ldrb", 4) == 4);
   reset_symbols();
 }
 
@@ -717,6 +724,13 @@ static void test_ldr() {
   assert(asm_one("ldr r1, [r15]\n", &node, 0) != PARSE_FAIL);
   assert(node.type == WORD);
   assert(node.u.word == 0xE59F1000);
+}
+
+static void test_ldrb() {
+  struct AsmNode node;
+  assert(asm_one("ldrb r3, [r1]\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE5D13000);
 }
 
 static void test_raw_hex() {
@@ -838,6 +852,7 @@ void unit_tests() {
   test_str_to_word_long();
   test_ldr_immediate_label();
   test_ldr_message_label();
+  test_ldrb();
 }
 
 int main(int argc, char* argv[]) {
