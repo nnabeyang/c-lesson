@@ -211,6 +211,7 @@ void setup_symbols() {
   to_mnemonic_symbol("cmp", 3);
   to_mnemonic_symbol("add", 3);
   to_mnemonic_symbol("sub", 3);
+  to_mnemonic_symbol("lsr", 3);
 }
 
 static int is_space(int ch) {
@@ -484,6 +485,29 @@ int asm_mov(char* str, struct AsmNode* node) {
   return 1;
 }
 
+int asm_lsr(char* str, struct AsmNode* node) {
+  int n, rm, rd, rs;
+  n = parse_register(str, &rd);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+
+  n = parse_register(str, &rm);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+  n = parse_register(str, &rs);
+  if(n == PARSE_FAIL) return PARSE_FAIL;  
+  node->u.word = 0xE1A00000 + (rd << 12) + (rs << 8) + rm + 0x30;
+  return 1;
+}
+
 int asm_b(char* str, struct AsmNode* node, int addr, int base_word) {
   int n;
   struct substring out_subs = {0};
@@ -531,6 +555,8 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
     return asm_add(str, node);
   case 9:
     return asm_sub(str, node);
+  case 10:
+    return asm_lsr(str, node);
   default:
     return PARSE_FAIL;
   }
@@ -826,6 +852,13 @@ static void test_sub() {
   assert(node.u.word == 0xE2421004);
 }
 
+static void test_lsr_reg() {
+  struct AsmNode node;
+  assert(asm_one("lsr r1, r2, r3\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE1A01332);
+}
+
 static void test_raw_hex() {
   struct AsmNode node;
   assert(asm_one(".raw 0x12345678\n", &node, 0) != PARSE_FAIL);
@@ -948,6 +981,7 @@ void unit_tests() {
   test_ldrb();
   test_bne();
   test_sub();
+  test_lsr_reg();
 }
 
 int main(int argc, char* argv[]) {
