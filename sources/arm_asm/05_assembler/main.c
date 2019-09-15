@@ -502,9 +502,19 @@ int asm_lsr(char* str, struct AsmNode* node) {
   if(n == PARSE_FAIL) return PARSE_FAIL;
   str += n;
   skip_space(str);
-  n = parse_register(str, &rs);
-  if(n == PARSE_FAIL) return PARSE_FAIL;  
-  node->u.word = 0xE1A00000 + (rd << 12) + (rs << 8) + rm + 0x30;
+
+  int is_immediate = !is_register(*str);
+  if(!is_immediate) {
+    n = parse_register(str, &rs);
+  } else {
+    n = parse_immediate(str, &rs);
+  }
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  if(is_immediate) {
+    node->u.word = 0xE1A00000 + (rd << 12) + (rs << 7) + rm + 0x20;
+  } else {
+    node->u.word = 0xE1A00000 + (rd << 12) + (rs << 8) + rm + 0x30;   
+  }
   return 1;
 }
 
@@ -859,6 +869,13 @@ static void test_lsr_reg() {
   assert(node.u.word == 0xE1A01332);
 }
 
+static void test_lsr_imm() {
+  struct AsmNode node;
+  assert(asm_one("lsr r3, r5, #0x4\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE1A03225);
+}
+
 static void test_raw_hex() {
   struct AsmNode node;
   assert(asm_one(".raw 0x12345678\n", &node, 0) != PARSE_FAIL);
@@ -982,6 +999,7 @@ void unit_tests() {
   test_bne();
   test_sub();
   test_lsr_reg();
+  test_lsr_imm();
 }
 
 int main(int argc, char* argv[]) {
