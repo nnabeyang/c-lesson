@@ -210,6 +210,7 @@ void setup_symbols() {
   to_mnemonic_symbol("str", 3);
   to_mnemonic_symbol("cmp", 3);
   to_mnemonic_symbol("add", 3);
+  to_mnemonic_symbol("sub", 3);
 }
 
 static int is_space(int ch) {
@@ -343,6 +344,35 @@ int asm_cmp(char* str, struct AsmNode* node) {
 int asm_add(char* str, struct AsmNode* node) {
   node->u.word = 0xE2811001;
   node->type = WORD;
+  return 1;
+}
+
+int asm_sub(char* str, struct AsmNode* node) {
+  int n, rn, rd, rm;
+  n = parse_register(str, &rn);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+
+  n = parse_register(str, &rd);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+
+  int is_immediate = !is_register(*str);
+  if(!is_immediate) {
+    n = parse_register(str, &rm);
+  } else {
+    n = parse_immediate(str, &rm);
+  }
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  node->u.word = 0xE0400000 + (rd << 16) + (rn << 12) + rm + (is_immediate << 25);
   return 1;
 }
 
@@ -499,6 +529,8 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
     return asm_cmp(str, node);
   case 8:
     return asm_add(str, node);
+  case 9:
+    return asm_sub(str, node);
   default:
     return PARSE_FAIL;
   }
@@ -787,6 +819,13 @@ static void test_add() {
   assert(node.u.word == 0xE2811001);
 }
 
+static void test_sub() {
+  struct AsmNode node;
+  assert(asm_one("sub r1, r2, #0x4\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE2421004);
+}
+
 static void test_raw_hex() {
   struct AsmNode node;
   assert(asm_one(".raw 0x12345678\n", &node, 0) != PARSE_FAIL);
@@ -908,6 +947,7 @@ void unit_tests() {
   test_ldr_message_label();
   test_ldrb();
   test_bne();
+  test_sub();
 }
 
 int main(int argc, char* argv[]) {
