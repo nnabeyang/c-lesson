@@ -202,7 +202,7 @@ void reset_symbols() {
 
 void setup_symbols() {
   to_mnemonic_symbol("b", 1);
-  to_mnemonic_symbol("bne", 3);
+  to_mnemonic_symbol("bne", 3);  
   to_mnemonic_symbol("mov", 3);
   to_mnemonic_symbol(".raw", 4);
   to_mnemonic_symbol("ldr", 3);
@@ -213,6 +213,7 @@ void setup_symbols() {
   to_mnemonic_symbol("sub", 3);
   to_mnemonic_symbol("lsr", 3);
   to_mnemonic_symbol("and", 3);
+  to_mnemonic_symbol("bge", 3);
 }
 
 static int is_space(int ch) {
@@ -594,6 +595,8 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
     return asm_lsr(str, node);
   case 11:
     return asm_and(str, node);
+  case 12:
+    return asm_b(str, node, addr, 0xAA000000);
   default:
     return PARSE_FAIL;
   }
@@ -760,6 +763,23 @@ static void test_b() {
   emit_word(&emitter, node.u.word);
   resolve_symbols(&emitter);
   assert(array[1] == 0XEAFFFFFD);
+}
+
+static void test_bge() {
+  struct AsmNode node;
+  reset_symbols();
+  reset_dict();
+  setup_symbols();
+  int addr = 0;
+  struct Emitter emitter = {0};
+  emitter.elems = array;
+  assert(asm_one("loop:\n", &node, 0) == PARSE_LABEL);
+  assert(asm_one("mov r1, r2\n", &node, 0) == 1);
+  emit_word(&emitter, node.u.word);
+  assert(asm_one("bge loop\n", &node, 1) == 1);
+  emit_word(&emitter, node.u.word);
+  resolve_symbols(&emitter);
+  assert(array[1] == 0XAAFFFFFD);
 }
 
 static void test_bne() {
@@ -1035,6 +1055,7 @@ void unit_tests() {
   test_lsr_reg();
   test_lsr_imm();
   test_and();
+  test_bge();
 }
 
 int main(int argc, char* argv[]) {
