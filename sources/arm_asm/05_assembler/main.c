@@ -540,7 +540,7 @@ int asm_and(char* str, struct AsmNode* node) {
 
   n = parse_immediate(str, &imm);
   if(n == PARSE_FAIL) return PARSE_FAIL;
-  node->u.word = 0xE2800000 + (rn << 16) + (rd << 12) + imm;
+  node->u.word = 0xE2000000 + (rn << 16) + (rd << 12) + imm;
   return 1;
 }
 
@@ -906,7 +906,7 @@ static void test_and() {
   struct AsmNode node;
   assert(asm_one("and r1, r2, #0x3\n", &node, 0) != PARSE_FAIL);
   assert(node.type == WORD);
-  assert(node.u.word == 0xE2821003);
+  assert(node.u.word == 0xE2021003);
 }
 
 static void test_sub() {
