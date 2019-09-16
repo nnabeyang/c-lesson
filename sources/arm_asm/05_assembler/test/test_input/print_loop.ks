@@ -3,9 +3,9 @@ ldr r1,=message
 ldrb r3,[r1]    
 loop:
     str r3,[r0]
-    add r1, r1, #1
+    add r1, r1, #0x1
     ldrb r3,[r1]
-    cmp r3,#0
+    cmp r3,#0x0
     bne loop
 end:
     b end
