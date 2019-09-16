@@ -356,8 +356,26 @@ int asm_cmp(char* str, struct AsmNode* node) {
 }
 
 int asm_add(char* str, struct AsmNode* node) {
-  node->u.word = 0xE2811001;
-  node->type = WORD;
+  int n, rn, rd, imm;
+  n = parse_register(str, &rd);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+
+  n = parse_register(str, &rn);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+
+  n = parse_immediate(str, &imm);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  node->u.word = 0xE2800000 + (rn << 16) + (rd << 12) + imm;
   return 1;
 }
 
@@ -920,6 +938,13 @@ static void test_add() {
   assert(node.u.word == 0xE2811001);
 }
 
+static void test_add2() {
+  struct AsmNode node;
+  assert(asm_one("add r4, r7, #0x5\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE2874005);
+}
+
 static void test_and() {
   struct AsmNode node;
   assert(asm_one("and r1, r2, #0x3\n", &node, 0) != PARSE_FAIL);
@@ -1075,6 +1100,7 @@ void unit_tests() {
   test_and();
   test_bge();
   test_cmp2();
+  test_add2();
 }
 
 int main(int argc, char* argv[]) {
