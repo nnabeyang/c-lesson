@@ -695,7 +695,7 @@ void resolve_symbols(struct Emitter* emitter) {
       int word = array[p->pos];
       if(is_b(word)) {
         int r_addr = addr - p->pos - 1;
-        array[p->pos] = word | (0XFFFFFF + r_addr);
+        array[p->pos] = word | (0XFFFFFF & (0XFFFFFF + r_addr));
       } else {
         int addr2 = emitter->pos++;
         array[addr2] = 0X00010000 | (addr * 4);
