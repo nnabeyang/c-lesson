@@ -339,7 +339,18 @@ int asm_str(char* str, struct AsmNode* node) {
 }
 
 int asm_cmp(char* str, struct AsmNode* node) {
-  node->u.word = 0xE3530000 ;
+  int n, rn, imm;
+  n = parse_register(str, &rn);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  skip_space(str);
+
+  n = parse_immediate(str, &imm);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  node->u.word = 0xE3500000 + (rn << 16) + imm;
   node->type = WORD;
   return 1;
 }
@@ -895,6 +906,13 @@ static void test_cmp() {
   assert(node.u.word == 0xE3530000);
 }
 
+static void test_cmp2() {
+  struct AsmNode node;
+  assert(asm_one("cmp r3, #0xa\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE353000A);
+}
+
 static void test_add() {
   struct AsmNode node;
   assert(asm_one("add r1, r1, #0x1\n", &node, 0) != PARSE_FAIL);
@@ -1056,6 +1074,7 @@ void unit_tests() {
   test_lsr_imm();
   test_and();
   test_bge();
+  test_cmp2();
 }
 
 int main(int argc, char* argv[]) {
