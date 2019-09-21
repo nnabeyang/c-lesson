@@ -597,7 +597,7 @@ int asm_b(char* str, struct AsmNode* node, int addr, int base_word) {
   return 1;
 }
 
-int asm_stmdb(char* str, struct AsmNode* node) {
+int asm_block_data_transfer(char* str, struct AsmNode* node, int base_word) {
   int n, rn, rm, register_list;
   n = parse_register(str, &rn);
   if(n == PARSE_FAIL) return PARSE_FAIL;
@@ -631,46 +631,7 @@ int asm_stmdb(char* str, struct AsmNode* node) {
   n = skip_symbol(str, '}');
   if(n == PARSE_FAIL) return PARSE_FAIL;  
   
-  node->u.word = 0xE9200000 + (rn << 16) + register_list;
-  node->type = WORD;
-  return 1;
-}
-
-int asm_ldmia(char* str, struct AsmNode* node) {
-  int n, rn, rm, register_list;
-  n = parse_register(str, &rn);
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  n = skip_symbol(str, '!');
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  n = skip_symbol(str, ',');
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-
-  n = skip_symbol(str, '{');
-  if(n == PARSE_FAIL) return PARSE_FAIL;
-  str += n;
-  register_list = 0;
-  for(int i = 0; i < 16; i++) {
-    if(i > 0) {
-      n = skip_symbol(str, ',');
-      if(n == PARSE_FAIL) return PARSE_FAIL;
-      str += n;
-    }
-    skip_space(str);
-    n = parse_register(str, &rm);
-    str += n;
-    register_list += 1 << rm;
-    skip_space(str);
-    if(*str == '}') {
-      break;
-    }
-  }
-  n = skip_symbol(str, '}');
-  if(n == PARSE_FAIL) return PARSE_FAIL;  
-  
-  node->u.word = 0xE8B00000 + (rn << 16) + register_list;
+  node->u.word = base_word + (rn << 16) + register_list;
   node->type = WORD;
   return 1;
 }
@@ -719,9 +680,9 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
   case 13:
     return asm_b(str, node, addr, 0xEB000000);
   case 14:
-    return asm_stmdb(str, node);
+    return asm_block_data_transfer(str, node, 0xE9200000);
   case 15:
-    return asm_ldmia(str, node);
+    return asm_block_data_transfer(str, node, 0xE8B00000);
   default:
     return PARSE_FAIL;
   }
