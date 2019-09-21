@@ -223,6 +223,7 @@ void setup_symbols() {
   to_mnemonic_symbol("and", 3);
   to_mnemonic_symbol("bge", 3);
   to_mnemonic_symbol("bl", 2);
+  to_mnemonic_symbol("stmdb", 5);
 }
 
 static int is_space(int ch) {
@@ -595,6 +596,45 @@ int asm_b(char* str, struct AsmNode* node, int addr, int base_word) {
   return 1;
 }
 
+int asm_stmdb(char* str, struct AsmNode* node) {
+  int n, rn, rm, register_list;
+  n = parse_register(str, &rn);
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, '!');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  n = skip_symbol(str, ',');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+
+  n = skip_symbol(str, '{');
+  if(n == PARSE_FAIL) return PARSE_FAIL;
+  str += n;
+  register_list = 0;
+  for(int i = 0; i < 16; i++) {
+    if(i > 0) {
+      n = skip_symbol(str, ',');
+      if(n == PARSE_FAIL) return PARSE_FAIL;
+      str += n;
+    }
+    skip_space(str);
+    n = parse_register(str, &rm);
+    str += n;
+    register_list += 1 << rm;
+    skip_space(str);
+    if(*str == '}') {
+      break;
+    }
+  }
+  n = skip_symbol(str, '}');
+  if(n == PARSE_FAIL) return PARSE_FAIL;  
+  
+  node->u.word = 0xE9200000 + (rn << 16) + register_list;
+  node->type = WORD;
+  return 1;
+}
+
 int asm_one(char* str, struct AsmNode* node, int addr) {
   int n;
   struct substring out_subs = {0};
@@ -638,6 +678,8 @@ int asm_one(char* str, struct AsmNode* node, int addr) {
     return asm_b(str, node, addr, 0xAA000000);
   case 13:
     return asm_b(str, node, addr, 0xEB000000);
+  case 14:
+    return asm_stmdb(str, node);
   default:
     return PARSE_FAIL;
   }
@@ -1013,6 +1055,27 @@ static void test_mov() {
   assert(node.u.word == 0xE1A0000F);
 }
 
+static void test_stmdb() {
+  struct AsmNode node;
+  assert(asm_one("stmdb r13!, {r1}\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE92D0002);
+}
+
+static void test_stmdb2() {
+  struct AsmNode node;
+  assert(asm_one("stmdb r13!, {r1, r2}\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE92D0006);
+}
+
+static void test_stmdb3() {
+  struct AsmNode node;
+  assert(asm_one("stmdb r5!, {r1, r2, r0}\n", &node, 0) != PARSE_FAIL);
+  assert(node.type == WORD);
+  assert(node.u.word == 0xE9250007);
+}
+
 static void test_raw_hex() {
   struct AsmNode node;
   assert(asm_one(".raw 0x12345678\n", &node, 0) != PARSE_FAIL);
@@ -1143,6 +1206,9 @@ void unit_tests() {
   test_add2();
   test_bl();
   test_mov();
+  test_stmdb();
+  test_stmdb2();
+  test_stmdb3();
 }
 
 int main(int argc, char* argv[]) {
